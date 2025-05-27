@@ -57,7 +57,8 @@ dftracer::ConfigurationManager::ConfigurationManager()
       tids(true),
       bind_signals(false),
       throw_error(false),
-      write_buffer_size(10) {
+      write_buffer_size(10),
+      writer_type(WriterType::CHROME) {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {
@@ -290,6 +291,12 @@ dftracer::ConfigurationManager::ConfigurationManager()
     }
     DFTRACER_LOG_DEBUG("ENV ConfigurationManager.write_buffer_size %d",
                        this->write_buffer_size);
+    const char *writer_type = getenv(DFTRACER_WRITER_TYPE_ENV);
+    if (writer_type != nullptr) {
+      convert(writer_type, this->writer_type);
+    }
+    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.writer_type %d",
+                       this->writer_type);
   }
   DFTRACER_LOG_DEBUG("ENV ConfigurationManager finished", "");
 }

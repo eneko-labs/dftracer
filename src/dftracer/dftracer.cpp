@@ -4,6 +4,7 @@
 
 #include <dftracer/core/dftracer_main.h>
 #include <dftracer/core/enumeration.h>
+#include <dftracer/core/typedef.h>
 #include <dftracer/dftracer.h>
 
 DFTracer::DFTracer(ConstEventNameType _name, ConstEventNameType _cat,
@@ -18,8 +19,9 @@ DFTracer::DFTracer(ConstEventNameType _name, ConstEventNameType _cat,
                                                ProfileType::PROFILER_CPP_APP);
   if (dftracer_core != nullptr) {
     if (event_type == DF_DATA_EVENT) {
-      if (dftracer_core->include_metadata)
-        metadata = new std::unordered_map<std::string, std::any>();
+      if (dftracer_core->include_metadata) {
+        metadata = new MetadataMap();
+      }
       start_time = dftracer_core->get_time();
     }
   }

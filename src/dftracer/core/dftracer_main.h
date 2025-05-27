@@ -54,7 +54,7 @@ class DFTracerCore {
 
   void log(ConstEventNameType event_name, ConstEventNameType category,
            TimeResolution start_time, TimeResolution duration,
-           std::unordered_map<std::string, std::any> *metadata);
+           MetadataMap *metadata);
 
   void log_metadata(ConstEventNameType key, ConstEventNameType value);
 

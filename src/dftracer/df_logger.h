@@ -12,7 +12,11 @@
 #include <dftracer/utils/configuration_manager.h>
 #include <dftracer/utils/md5.h>
 #include <dftracer/utils/utils.h>
+#if DFTRACER_WRITER_TYPE_ZEROMQ
+#include <dftracer/writer/zeromq_writer.h>
+#elif DFTRACER_WRITER_TYPE_CHROME
 #include <dftracer/writer/chrome_writer.h>
+#endif
 #include <libgen.h>
 #include <sys/time.h>
 #include <time.h>
@@ -37,6 +41,12 @@
 
 typedef std::chrono::high_resolution_clock chrono;
 
+#if DFTRACER_WRITER_TYPE_ZEROMQ
+using DFTWriter = dftracer::ZeroMQWriter;
+#elif DFTRACER_WRITER_TYPE_CHROME
+using DFTWriter = dftracer::ChromeWriter;
+#endif
+
 class DFTLogger {
  private:
   std::shared_mutex level_mtx;
@@ -44,7 +54,7 @@ class DFTLogger {
   bool throw_error;
   bool is_init, dftracer_tid;
   ProcessID process_id;
-  std::shared_ptr<dftracer::ChromeWriter> writer;
+  std::shared_ptr<DFTWriter> writer;
   uint32_t level;
   std::vector<int> index_stack;
   std::unordered_map<std::string, HashType> computed_hash;
@@ -129,7 +139,7 @@ class DFTLogger {
     if (dftracer_tid) {
       tid = df_gettid();
     }
-    this->writer = dftracer::Singleton<dftracer::ChromeWriter>::get_instance();
+    this->writer = dftracer::Singleton<DFTWriter>::get_instance();
     HashType hostname_hash;
     HashType cmd_hash;
     HashType exec_hash;
@@ -148,28 +158,28 @@ class DFTLogger {
           current_index, thread_name, METADATA_NAME_THREAD_NAME,
           METADATA_NAME_THREAD_NAME, this->process_id, tid);
       this->exit_event();
-      std::unordered_map<std::string, std::any> *meta = nullptr;
+      MetadataMap *metadata = nullptr;
       if (include_metadata) {
-        meta = new std::unordered_map<std::string, std::any>();
+        metadata = new MetadataMap();
         cmd_hash = hash_and_store(cmd.data(), METADATA_NAME_STRING_HASH);
         exec_hash = hash_and_store(exec_name.data(), METADATA_NAME_STRING_HASH);
 
-        meta->insert_or_assign("version", DFTRACER_GIT_VERSION);
-        meta->insert_or_assign("exec_hash", exec_hash);
-        meta->insert_or_assign("cmd_hash", cmd_hash);
+        metadata->insert_or_assign("version", DFTRACER_GIT_VERSION);
+        metadata->insert_or_assign("exec_hash", exec_hash);
+        metadata->insert_or_assign("cmd_hash", cmd_hash);
         time_t ltime;       /* calendar time */
         ltime = time(NULL); /* get current cal time */
         char timestamp[1024];
         auto size = sprintf(timestamp, "%s", asctime(localtime(&ltime)));
         timestamp[size - 1] = '\0';
-        meta->insert_or_assign("date", std::string(timestamp));
-        meta->insert_or_assign("ppid", getppid());
+        metadata->insert_or_assign("date", std::string(timestamp));
+        metadata->insert_or_assign("ppid", getppid());
       }
       this->enter_event();
-      this->log("start", "dftracer", this->get_time(), 0, meta);
+      this->log("start", "dftracer", this->get_time(), 0, metadata);
       this->exit_event();
       if (include_metadata) {
-        delete (meta);
+        delete (metadata);
       }
       if (enable_core_affinity) {
 #ifdef DFTRACER_HWLOC_ENABLE
@@ -251,7 +261,7 @@ class DFTLogger {
 
   inline TimeResolution get_time() {
     DFTRACER_LOG_DEBUG("DFTLogger.get_time", "");
-    struct timeval tv {};
+    struct timeval tv{};
     gettimeofday(&tv, NULL);
     TimeResolution t = 1000000 * tv.tv_sec + tv.tv_usec;
     return t;
@@ -288,7 +298,7 @@ class DFTLogger {
 
   inline void log(ConstEventNameType event_name, ConstEventNameType category,
                   TimeResolution start_time, TimeResolution duration,
-                  std::unordered_map<std::string, std::any> *metadata) {
+                  MetadataMap *metadata) {
     DFTRACER_LOG_DEBUG("DFTLogger.log", "");
     ThreadID tid = 0;
     if (dftracer_tid) {
@@ -397,10 +407,10 @@ class DFTLogger {
   inline void finalize() {
     DFTRACER_LOG_DEBUG("DFTLogger.finalize", "");
     if (this->writer != nullptr) {
-      auto meta = std::unordered_map<std::string, std::any>();
-      meta.insert_or_assign("num_events", index.load());
+      auto metadata = MetadataMap();
+      metadata.insert_or_assign("num_events", index.load());
       this->enter_event();
-      this->log("end", "dftracer", this->get_time(), 0, &meta);
+      this->log("end", "dftracer", this->get_time(), 0, &metadata);
       this->exit_event();
       writer->finalize(has_entry);
       DFTRACER_LOG_INFO("Released Logger", "");
@@ -426,31 +436,31 @@ class DFTLogger {
     DFT_LOGGER_UPDATE(value##_hash);                                  \
   }
 
-#define DFT_LOGGER_START(entity)                                  \
-  DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__);        \
-  HashType fhash = is_traced(entity, __FUNCTION__);               \
-  bool trace = fhash != NO_HASH_DEFAULT;                          \
-  TimeResolution start_time = 0;                                  \
-  std::unordered_map<std::string, std::any> *metadata = nullptr;  \
-  if (trace) {                                                    \
-    if (this->logger->include_metadata) {                         \
-      metadata = new std::unordered_map<std::string, std::any>(); \
-      DFT_LOGGER_UPDATE(fhash);                                   \
-    }                                                             \
-    this->logger->enter_event();                                  \
-    start_time = this->logger->get_time();                        \
+#define DFT_LOGGER_START(entity)                           \
+  DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__); \
+  HashType fhash = is_traced(entity, __FUNCTION__);        \
+  bool trace = fhash != NO_HASH_DEFAULT;                   \
+  TimeResolution start_time = 0;                           \
+  MetadataMap *metadata = nullptr;                         \
+  if (trace) {                                             \
+    if (this->logger->include_metadata) {                  \
+      metadata = new MetadataMap();                        \
+      DFT_LOGGER_UPDATE(fhash);                            \
+    }                                                      \
+    this->logger->enter_event();                           \
+    start_time = this->logger->get_time();                 \
   }
-#define DFT_LOGGER_START_ALWAYS()                                 \
-  DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__);        \
-  bool trace = true;                                              \
-  TimeResolution start_time = 0;                                  \
-  std::unordered_map<std::string, std::any> *metadata = nullptr;  \
-  if (trace) {                                                    \
-    if (this->logger->include_metadata) {                         \
-      metadata = new std::unordered_map<std::string, std::any>(); \
-    }                                                             \
-    this->logger->enter_event();                                  \
-    start_time = this->logger->get_time();                        \
+#define DFT_LOGGER_START_ALWAYS()                          \
+  DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__); \
+  bool trace = true;                                       \
+  TimeResolution start_time = 0;                           \
+  MetadataMap *metadata = nullptr;                         \
+  if (trace) {                                             \
+    if (this->logger->include_metadata) {                  \
+      metadata = new MetadataMap();                        \
+    }                                                      \
+    this->logger->enter_event();                           \
+    start_time = this->logger->get_time();                 \
   }
 #define DFT_LOGGER_END()                                          \
   if (trace) {                                                    \

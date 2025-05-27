@@ -28,6 +28,7 @@ class ConfigurationManager {
   bool bind_signals;
   bool throw_error;
   size_t write_buffer_size;
+  WriterType writer_type;
   ConfigurationManager();
   void finalize() {}
 };

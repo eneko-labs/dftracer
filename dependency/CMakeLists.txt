@@ -6,9 +6,23 @@ add_dependencies(brahma cpp-logger)
 add_dependencies(brahma gotcha)
 find_package(yaml-cpp QUIET)
 install_external_project(yaml-cpp "" "YAML_CPP" https://github.com/jbeder/yaml-cpp.git yaml-cpp-0.6.3 ${CMAKE_INSTALL_PREFIX} "-DYAML_CPP_BUILD_TESTS=OFF;-DYAML_BUILD_SHARED_LIBS=ON;-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
-if (NOT ${yaml-cpp_FOUND})
+
+if(NOT ${yaml-cpp_FOUND})
   add_dependencies(yaml-cpp brahma)
   add_dependencies(yaml-cpp gotcha)
   add_dependencies(yaml-cpp cpp-logger)
 endif()
+
 install_external_project(pybind11 2.12.0 "pybind11" https://github.com/pybind/pybind11.git v2.12.0 ${CMAKE_INSTALL_PREFIX} "-DPYBIND11_TEST=OFF")
+
+# ZeroMQ setup if selected
+if(DFTRACER_WRITER_TYPE STREQUAL "ZEROMQ")
+  # Install libzmq (C backend)
+  install_external_project(ZeroMQ 4.3.5 "ZeroMQ" https://github.com/zeromq/libzmq.git v4.3.5 ${CMAKE_INSTALL_PREFIX} "-DBUILD_SHARED=ON;-DENABLE_CURVE=OFF;-DZMQ_BUILD_TESTS=OFF")
+
+  # Install cppzmq (header-only C++ wrapper)
+  install_external_project(cppzmq 4.10.0 "cppzmq" https://github.com/zeromq/cppzmq.git v4.9.0 ${CMAKE_INSTALL_PREFIX} "-DCPPZMQ_BUILD_TESTS=OFF")
+
+  add_dependencies(cppzmq ZeroMQ)
+  add_dependencies(ZeroMQ yaml-cpp)
+endif()

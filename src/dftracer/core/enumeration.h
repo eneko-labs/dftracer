@@ -4,7 +4,10 @@
 
 #ifndef DFTRACER_ENUMERATION_H
 #define DFTRACER_ENUMERATION_H
-enum WriterType : uint8_t { CHROME = 0 };
+enum WriterType : uint8_t {
+  CHROME = 0,
+  ZEROMQ = 1,
+};
 enum ProfilerStage : uint8_t {
   PROFILER_INIT = 0,
   PROFILER_FINI = 1,
@@ -42,6 +45,16 @@ inline void convert(const std::string &s, cpplogger::LoggerType &type) {
     type = cpplogger::LoggerType::LOG_WARN;
   } else {
     type = cpplogger::LoggerType::LOG_ERROR;
+  }
+}
+
+inline void convert(const std::string &s, WriterType &type) {
+  if (s == "CHROME") {
+    type = WriterType::CHROME;
+  } else if (s == "ZEROMQ") {
+    type = WriterType::ZEROMQ;
+  } else {
+    type = WriterType::CHROME;  // Default to CHROME
   }
 }
 

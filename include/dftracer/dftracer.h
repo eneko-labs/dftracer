@@ -43,7 +43,7 @@ class DFTracer {
   ConstEventNameType name;
   ConstEventNameType cat;
   TimeResolution start_time;
-  std::unordered_map<std::string, std::any> *metadata;
+  MetadataMap *metadata;
 
  public:
   DFTracer(ConstEventNameType _name, ConstEventNameType _cat,
@@ -67,8 +67,10 @@ class DFTracer {
   DFTracer profiler_dft_fn =    \
       DFTracer((char *)__FUNCTION__, CPP_LOG_CATEGORY, DF_DATA_EVENT);
 
-#define DFTRACER_CPP_METADATA(name, key, value) \
-  { DFTracer profiler_##name = DFTracer(key, value, DF_METADATA_EVENT); }
+#define DFTRACER_CPP_METADATA(name, key, value)                         \
+  {                                                                     \
+    DFTracer profiler_##name = DFTracer(key, value, DF_METADATA_EVENT); \
+  }
 
 #define DFTRACER_CPP_REGION(name) \
   DFTracer profiler_##name = DFTracer(#name, CPP_LOG_CATEGORY, DF_DATA_EVENT);
