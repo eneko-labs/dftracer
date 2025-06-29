@@ -163,8 +163,13 @@ class DFTLogger {
         metadata = new MetadataMap();
         cmd_hash = hash_and_store(cmd.data(), METADATA_NAME_STRING_HASH);
         exec_hash = hash_and_store(exec_name.data(), METADATA_NAME_STRING_HASH);
-
+#ifdef DFTRACER_GIT_VERSION
         metadata->insert_or_assign("version", DFTRACER_GIT_VERSION);
+#else
+#ifdef DFTRACER_VERSION
+        metadata->insert_or_assign("version", DFTRACER_VERSION);
+#endif
+#endif
         metadata->insert_or_assign("exec_hash", exec_hash);
         metadata->insert_or_assign("cmd_hash", cmd_hash);
         time_t ltime;       /* calendar time */

@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.9", "3.10", "3.11", "3.12"]
-        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04]
     name: ${{ matrix.python }}-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
@@ -55,7 +55,7 @@ jobs:
           rm dist/*linux_x86_64.whl
           rm dist/*.tar.gz
       - name: Build source package
-        if: matrix.os == 'ubuntu-20.04' && matrix.python == '3.7'
+        if: matrix.os == 'ubuntu-24.04' && matrix.python == '3.12'
         run: |
           export DFTRACER_WHEEL=1
           python setup.py sdist
