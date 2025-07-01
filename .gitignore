@@ -87,6 +87,7 @@ pydftracer.egg-info
 
 # Debug files
 /*.core
+tmp/
 
 dfanalyzer/dask/run_dir
 dfanalyzer/dask/logs
