@@ -12,10 +12,12 @@
 #include <dftracer/utils/configuration_manager.h>
 #include <dftracer/utils/md5.h>
 #include <dftracer/utils/utils.h>
-#if DFTRACER_WRITER_TYPE_ZEROMQ
-#include <dftracer/writer/zeromq_writer.h>
-#elif DFTRACER_WRITER_TYPE_CHROME
-#include <dftracer/writer/chrome_writer.h>
+#if DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE
+#include <dftracer/writer/perfetto_proto_file_writer.h>
+#elif DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZMQ
+#include <dftracer/writer/perfetto_proto_zmq_writer.h>
+#elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE
+#include <dftracer/writer/perfetto_chrome_file_writer.h>
 #endif
 #include <libgen.h>
 #include <sys/time.h>
@@ -41,10 +43,12 @@
 
 typedef std::chrono::high_resolution_clock chrono;
 
-#if DFTRACER_WRITER_TYPE_ZEROMQ
-using DFTWriter = dftracer::ZeroMQWriter;
-#elif DFTRACER_WRITER_TYPE_CHROME
-using DFTWriter = dftracer::ChromeWriter;
+#if DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE
+using DFTWriter = dftracer::PerfettoProtoFileWriter;
+#elif DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZMQ
+using DFTWriter = dftracer::PerfettoProtoZMQWriter;
+#elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE
+using DFTWriter = dftracer::PerfettoChromeFileWriter;
 #endif
 
 class DFTLogger {

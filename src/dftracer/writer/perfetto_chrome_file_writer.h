@@ -2,8 +2,8 @@
 // Created by haridev on 3/28/23.
 //
 
-#ifndef DFTRACER_CHROME_WRITER_H
-#define DFTRACER_CHROME_WRITER_H
+#ifndef DFTRACER_PERFETTO_CHROME_FILE_WRITER_H
+#define DFTRACER_PERFETTO_CHROME_FILE_WRITER_H
 
 #include <assert.h>
 #include <dftracer/core/constants.h>
@@ -23,7 +23,7 @@
 #include <unordered_map>
 
 namespace dftracer {
-class ChromeWriter : public WriterBase {
+class PerfettoChromeFileWriter : public WriterBase {
  protected:
   static const int MAX_LINE_SIZE = 16 * 1024L;
   bool enable_compression;
@@ -38,7 +38,7 @@ class ChromeWriter : public WriterBase {
     std::unique_lock lock(mtx);
     if (current_index == 0 || (!force && current_index < write_buffer_size))
       return 0;
-    DFTRACER_LOG_DEBUG("ChromeWriter.write_buffer_op %s",
+    DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.write_buffer_op %s",
                        this->filename.c_str());
     size_t written_elements = 0;
     flockfile(fh);
@@ -56,12 +56,12 @@ class ChromeWriter : public WriterBase {
   }
 
  public:
-  ChromeWriter()
+  PerfettoChromeFileWriter()
       : enable_compression(false),
         is_first_write(false),
         fh(nullptr),
         write_buffer_size(0) {
-    DFTRACER_LOG_DEBUG("ChromeWriter.ChromeWriter", "");
+    DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.PerfettoChromeFileWriter", "");
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
     enable_core_affinity = conf->core_affinity;
@@ -73,7 +73,9 @@ class ChromeWriter : public WriterBase {
       current_index = 0;
     }
   }
-  ~ChromeWriter() { DFTRACER_LOG_DEBUG("Destructing ChromeWriter", ""); }
+  ~PerfettoChromeFileWriter() {
+    DFTRACER_LOG_DEBUG("Destructing PerfettoChromeFileWriter", "");
+  }
   void initialize(char *filename, bool throw_error, HashType hostname_hash);
   void log(int index, ConstEventNameType event_name,
            ConstEventNameType category, TimeResolution start_time,
@@ -85,6 +87,7 @@ class ChromeWriter : public WriterBase {
   void finalize(bool has_entry);
 
  private:
+  std::string convert_metadata_to_json_string(MetadataMap *metadata);
   void write_event_json_to_buffer(int index, ConstEventNameType event_name,
                                   ConstEventNameType category,
                                   TimeResolution start_time,
@@ -99,4 +102,4 @@ class ChromeWriter : public WriterBase {
 };
 }  // namespace dftracer
 
-#endif  // DFTRACER_CHROME_WRITER_H
+#endif  // DFTRACER_PERFETTO_CHROME_FILE_WRITER_H

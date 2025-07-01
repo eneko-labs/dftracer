@@ -1,5 +1,5 @@
-#ifndef DFTRACER_ZEROMQ_WRITER_H
-#define DFTRACER_ZEROMQ_WRITER_H
+#ifndef DFTRACER_PERFETTO_PROTO_ZMQ_WRITER_H
+#define DFTRACER_PERFETTO_PROTO_ZMQ_WRITER_H
 
 #include <assert.h>
 #include <dftracer/core/constants.h>
@@ -8,6 +8,7 @@
 #include <dftracer/utils/posix_internal.h>
 #include <dftracer/utils/utils.h>
 #include <dftracer/writer/writer_base.h>
+#include <perfetto.h>
 #include <unistd.h>
 
 #include <any>
@@ -20,20 +21,28 @@
 #include <zmq.hpp>
 
 namespace dftracer {
-class ZeroMQWriter : public WriterBase {
+class PerfettoProtoZMQWriter : public WriterBase {
  private:
+  std::mutex mtx;
   std::unique_ptr<zmq::context_t> context;
   std::unique_ptr<zmq::socket_t> socket;
+  std::thread stream_thread;
+  std::atomic<bool> stop_stream;
+  std::unique_ptr<perfetto::TracingSession> tracing_session;
+
+  void stream_main(std::unique_ptr<perfetto::TracingSession> session);
 
  public:
-  ZeroMQWriter() {
-    DFTRACER_LOG_DEBUG("ZeroMQWriter.ZeroMQWriter", "");
+  PerfettoProtoZMQWriter() {
+    DFTRACER_LOG_DEBUG("PerfettoProtoZMQWriter.PerfettoProtoZMQWriter", "");
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
     include_metadata = conf->metadata;
     enable_core_affinity = conf->core_affinity;
   }
-  ~ZeroMQWriter() { DFTRACER_LOG_DEBUG("Destructing ZeroMQWriter", ""); }
+  ~PerfettoProtoZMQWriter() {
+    DFTRACER_LOG_DEBUG("Destructing PerfettoProtoZMQWriter", "");
+  }
   void initialize(char *filename, bool throw_error, HashType hostname_hash);
   void log(int index, ConstEventNameType event_name,
            ConstEventNameType category, TimeResolution start_time,
@@ -46,4 +55,4 @@ class ZeroMQWriter : public WriterBase {
 };
 }  // namespace dftracer
 
-#endif  // DFTRACER_ZEROMQ_WRITER_H
+#endif  // DFTRACER_PERFETTO_PROTO_ZMQ_WRITER_H

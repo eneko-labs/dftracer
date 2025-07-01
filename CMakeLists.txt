@@ -133,14 +133,20 @@ if(DFTRACER_ENABLE_MPI)
   set(DFTRACER_MPI_ENABLE 1)
 endif()
 
-option(DFTRACER_WRITER_TYPE "Writer Type" "CHROME")
+option(DFTRACER_WRITER_TYPE "Writer Type" "PERFETTO_CHROME_FILE")
 
-if(DFTRACER_WRITER_TYPE STREQUAL "ZEROMQ")
-  set(DFTRACER_WRITER_TYPE_CHROME 0)
-  set(DFTRACER_WRITER_TYPE_ZEROMQ 1)
+if(DFTRACER_WRITER_TYPE STREQUAL "PERFETTO_PROTO_ZMQ")
+  set(DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE 0)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE 0)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZMQ 1)
+elseif(DFTRACER_WRITER_TYPE STREQUAL "PERFETTO_PROTO_FILE")
+  set(DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE 0)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE 1)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZMQ 0)
 else()
-  set(DFTRACER_WRITER_TYPE_CHROME 1)
-  set(DFTRACER_WRITER_TYPE_ZEROMQ 0)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE 1)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE 0)
+  set(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZMQ 0)
 endif()
 
 option(DFTRACER_BUILD_PYTHON_BINDINGS "Build python bindings." ON)
@@ -253,6 +259,53 @@ else()
     message(FATAL_ERROR "-- [DFTRACER] yaml-cpp is needed for ${PROJECT_NAME} build")
   endif()
 
+  if(DFTRACER_WRITER_TYPE MATCHES ".*PROTO.*")
+    find_package(Protobuf REQUIRED)
+
+    if(Protobuf_FOUND)
+      message(STATUS "[DFTRACER] found protobuf at ${Protobuf_INCLUDE_DIRS}")
+      include_directories(${Protobuf_INCLUDE_DIRS})
+      set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${Protobuf_LIBRARIES})
+    else()
+      message(FATAL_ERROR "-- [DFTRACER] protobuf is needed for ${PROJECT_NAME} build")
+    endif()
+
+    find_library(PERFETTO_SDK_LIB perfetto_sdk PATHS ${CMAKE_INSTALL_PREFIX}/lib64 ${CMAKE_INSTALL_PREFIX}/lib NO_DEFAULT_PATH)
+    find_path(PERFETTO_SDK_INCLUDE perfetto.h PATHS ${CMAKE_INSTALL_PREFIX}/include NO_DEFAULT_PATH)
+
+    if(PERFETTO_SDK_LIB AND PERFETTO_SDK_INCLUDE)
+      message(STATUS "[DFTRACER] Found Perfetto SDK library at ${PERFETTO_SDK_LIB}")
+      message(STATUS "[DFTRACER] Found Perfetto SDK include at ${PERFETTO_SDK_INCLUDE}")
+      include_directories(${PERFETTO_SDK_INCLUDE})
+      set(PERFETTO_SDK_LIB ${PERFETTO_SDK_LIB} CACHE INTERNAL "Perfetto SDK library")
+      set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${PERFETTO_SDK_LIB})
+    else()
+      message(FATAL_ERROR "[DFTRACER] Perfetto SDK not found. Please install it first.")
+    endif()
+  endif()
+
+  if(DFTRACER_WRITER_TYPE STREQUAL "PERFETTO_PROTO_ZMQ")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(ZMQ REQUIRED libzmq)
+
+    if(ZMQ_FOUND)
+      message(STATUS "[DFTRACER] Found ZeroMQ at ${ZMQ_INCLUDE_DIRS}")
+      include_directories(${ZMQ_INCLUDE_DIRS})
+      set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${ZMQ_LIBRARIES})
+    else()
+      message(FATAL_ERROR "-- [DFTRACER] ZeroMQ is needed for ${PROJECT_NAME} build when DFTRACER_WRITER_TYPE is 'PERFETTO_PROTO_ZMQ'")
+    endif()
+
+    find_path(CPPZMQ_INCLUDE_DIR zmq.hpp)
+
+    if(CPPZMQ_INCLUDE_DIR)
+      message(STATUS "[DFTRACER] Found cppzmq at ${CPPZMQ_INCLUDE_DIR}")
+      include_directories(${CPPZMQ_INCLUDE_DIR})
+    else()
+      message(WARNING "[DFTRACER] cppzmq (C++ wrapper) not found — will fallback to C-style API")
+    endif()
+  endif()
+
   # Optional Dependencies
   # =============================================================================
   if(DFTRACER_BUILD_PYTHON_BINDINGS)
@@ -285,34 +338,13 @@ else()
     endif()
   endif()
 
-  if(DFTRACER_WRITER_TYPE STREQUAL "ZEROMQ")
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(ZMQ REQUIRED libzmq)
-
-    if(ZMQ_FOUND)
-      message(STATUS "[DFTRACER] Found ZeroMQ at ${ZMQ_INCLUDE_DIRS}")
-      include_directories(${ZMQ_INCLUDE_DIRS})
-      set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${ZMQ_LIBRARIES})
-    else()
-      message(FATAL_ERROR "-- [DFTRACER] ZeroMQ is needed for ${PROJECT_NAME} build when DFTRACER_WRITER_TYPE is 'zeromq'")
-    endif()
-
-    find_path(CPPZMQ_INCLUDE_DIR zmq.hpp)
-
-    if(CPPZMQ_INCLUDE_DIR)
-      message(STATUS "[DFTRACER] Found cppzmq at ${CPPZMQ_INCLUDE_DIR}")
-      include_directories(${CPPZMQ_INCLUDE_DIR})
-    else()
-      message(WARNING "[DFTRACER] cppzmq (C++ wrapper) not found — will fallback to C-style API")
-    endif()
-  endif()
-
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
   set(DFTRACER_PRELOAD_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/dftracer_preload.cpp)
   set(DFTRACER_PRELOAD_PRIVATE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/dftracer_preload.h)
 
-  set(DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/brahma/posix.cpp
+  set(DFTRACER_CORE_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/brahma/posix.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/brahma/stdio.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/finstrument/functions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/posix_internal.cpp
@@ -321,15 +353,14 @@ else()
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/configuration_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/md5.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/df_logger.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/utils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/writer_base.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/utils.cpp)
 
-  if(DFTRACER_WRITER_TYPE_ZEROMQ)
-    set(DFTRACER_CORE_SRC ${DFTRACER_CORE_SRC}
-      ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/zeromq_writer.cpp)
-  elseif(DFTRACER_WRITER_TYPE_CHROME)
-    set(DFTRACER_CORE_SRC ${DFTRACER_CORE_SRC}
-      ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/chrome_writer.cpp)
+  if(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE)
+    list(APPEND DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/perfetto_proto_file_writer.cpp)
+  elseif(DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZMQ)
+    list(APPEND DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/perfetto_proto_zmq_writer.cpp)
+  elseif(DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE)
+    list(APPEND DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/perfetto_chrome_file_writer.cpp)
   endif()
 
   set(DFTRACER_CORE_PUBLIC_INCLUDE
@@ -347,26 +378,33 @@ else()
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/logging.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/singleton.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/configuration_manager.h)
+
   add_library(${PROJECT_NAME} SHARED)
   target_compile_definitions(${PROJECT_NAME} PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-  target_link_libraries(${PROJECT_NAME} ${DEPENDENCY_LIB})
-  add_library(${PROJECT_NAME}_dbg SHARED)
-  target_link_libraries(${PROJECT_NAME}_dbg ${DEPENDENCY_LIB})
-  add_library(${PROJECT_NAME}_preload SHARED)
-  target_link_libraries(${PROJECT_NAME}_preload ${DEPENDENCY_LIB} ${PROJECT_NAME})
-  add_library(${PROJECT_NAME}_preload_dbg SHARED)
-  target_link_libraries(${PROJECT_NAME}_preload_dbg ${DEPENDENCY_LIB} ${PROJECT_NAME}_dbg)
+  target_link_libraries(${PROJECT_NAME} PUBLIC ${DEPENDENCY_LIB})
 
+  add_library(${PROJECT_NAME}_dbg SHARED)
+  target_link_libraries(${PROJECT_NAME}_dbg PUBLIC ${DEPENDENCY_LIB})
+
+  add_library(${PROJECT_NAME}_preload SHARED)
+  target_link_libraries(${PROJECT_NAME}_preload PRIVATE ${PROJECT_NAME})
+
+  add_library(${PROJECT_NAME}_preload_dbg SHARED)
+  target_link_libraries(${PROJECT_NAME}_preload_dbg PRIVATE ${PROJECT_NAME}_dbg)
+
+  # target_link_libraries(${PROJECT_NAME} INTERFACE ${PROJECT_NAME})
+  # target_link_libraries(${PROJECT_NAME}_dbg INTERFACE ${PROJECT_NAME}_dbg)
   set(DFTRACER_DEBUG_TARGETS ${PROJECT_NAME}_dbg ${PROJECT_NAME}_preload_dbg)
 
   if(DFTRACER_BUILD_PYTHON_BINDINGS)
-    pybind11_add_module(py${PROJECT_NAME} ${DFTRACER_CORE_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/pydftracer.cpp)
+    pybind11_add_module(py${PROJECT_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/pydftracer.cpp)
     target_compile_definitions(py${PROJECT_NAME} PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
-    target_link_libraries(py${PROJECT_NAME} PRIVATE ${DEPENDENCY_LIB})
+    target_link_libraries(py${PROJECT_NAME} PRIVATE ${PROJECT_NAME})
 
-    pybind11_add_module(py${PROJECT_NAME}_dbg NO_EXTRAS ${DFTRACER_CORE_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/pydftracer_dbg.cpp)
+    pybind11_add_module(py${PROJECT_NAME}_dbg SHARED ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/pydftracer_dbg.cpp)
     target_compile_definitions(py${PROJECT_NAME}_dbg PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
-    target_link_libraries(py${PROJECT_NAME}_dbg PRIVATE ${DEPENDENCY_LIB})
+    target_link_libraries(py${PROJECT_NAME}_dbg PRIVATE ${PROJECT_NAME}_dbg)
+
     list(APPEND DFTRACER_DEBUG_TARGETS py${PROJECT_NAME}_dbg)
   endif()
 
@@ -744,8 +782,9 @@ else()
     DFTRACER_LIBDIR_AS_LIB
     DFTRACER_USE_CLANG_LIBCXX
     DFTRACER_WARNINGS_AS_ERRORS
-    DFTRACER_WRITER_TYPE_CHROME
-    DFTRACER_WRITER_TYPE_ZEROMQ
+    DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE
+    DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE
+    DFTRACER_WRITER_TYPE_PERFETTO_PROTO_ZEROMQ
   )
   string(APPEND _str
     "\n== End DFTRACER Configuration Summary ==\n")

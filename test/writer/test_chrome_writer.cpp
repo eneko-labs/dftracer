@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "dftracer/core/typedef.h"
-#include "dftracer/writer/chrome_writer.h"
+#include "dftracer/writer/perfetto_chrome_file_writer.h"
 
-static dftracer::ChromeWriter writer_instance;
+static dftracer::PerfettoChromeFileWriter writer_instance;
 
 int main(int argc, char** argv) {
   std::string tmp_output_file = "perf_chrome_trace.json";
@@ -65,17 +65,19 @@ int main(int argc, char** argv) {
   double duration_s = static_cast<double>(duration_ms) / 1000.0;
 
   std::cout << std::endl;
-  std::cout << "[ PERFORMANCE ] ChromeWriter: Logged " << num_events_to_log
+  std::cout << "[ PERFORMANCE ] PerfettoChromeFileWriter: Logged "
+            << num_events_to_log
             << " main events (plus some metadata events) in " << duration_s
             << " seconds." << std::endl;
   if (duration_s > 0) {
-    std::cout << "[ PERFORMANCE ] ChromeWriter: Throughput: "
+    std::cout << "[ PERFORMANCE ] PerfettoChromeFileWriter: Throughput: "
               << static_cast<double>(num_events_to_log) / duration_s
               << " main events/sec." << std::endl;
   } else {
-    std::cout << "[ PERFORMANCE ] ChromeWriter: Duration too short to "
-                 "calculate throughput accurately."
-              << std::endl;
+    std::cout
+        << "[ PERFORMANCE ] PerfettoChromeFileWriter: Duration too short to "
+           "calculate throughput accurately."
+        << std::endl;
   }
 
   std::ifstream file(tmp_output_file);

@@ -19,15 +19,6 @@ class WriterBase {
   bool init = false;
   bool throw_error = false;
 
-  std::string convert_event_to_json_string(
-      int index, ConstEventNameType event_name, ConstEventNameType category,
-      TimeResolution start_time, TimeResolution duration, MetadataMap *metadata,
-      ProcessID process_id, ThreadID thread_id);
-  std::string convert_metadata_event_to_json_string(
-      int index, ConstEventNameType name, ConstEventNameType value,
-      ConstEventNameType ph, ProcessID process_id, ThreadID thread_id);
-  std::string convert_metadata_to_json_string(MetadataMap *metadata);
-
  public:
   virtual ~WriterBase() = default;
   virtual void initialize(char *filename, bool throw_error,

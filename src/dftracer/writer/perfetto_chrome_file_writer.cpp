@@ -3,7 +3,7 @@
 //
 
 #include <dftracer/core/logging.h>
-#include <dftracer/writer/chrome_writer.h>
+#include <dftracer/writer/perfetto_chrome_file_writer.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -16,15 +16,15 @@
 #include <thread>
 
 template <>
-std::shared_ptr<dftracer::ChromeWriter>
-    dftracer::Singleton<dftracer::ChromeWriter>::instance = nullptr;
+std::shared_ptr<dftracer::PerfettoChromeFileWriter>
+    dftracer::Singleton<dftracer::PerfettoChromeFileWriter>::instance = nullptr;
 template <>
-bool dftracer::Singleton<dftracer::ChromeWriter>::stop_creating_instances =
-    false;
+bool dftracer::Singleton<
+    dftracer::PerfettoChromeFileWriter>::stop_creating_instances = false;
 
 namespace dftracer {
-void ChromeWriter::initialize(char *filename, bool throw_error,
-                              HashType hostname_hash) {
+void PerfettoChromeFileWriter::initialize(char *filename, bool throw_error,
+                                          HashType hostname_hash) {
   this->hostname_hash = hostname_hash;
   this->throw_error = throw_error;
   this->filename = filename;
@@ -39,44 +39,48 @@ void ChromeWriter::initialize(char *filename, bool throw_error,
     }
   }
   init = true;
-  DFTRACER_LOG_DEBUG("ChromeWriter.initialize %s", this->filename.c_str());
+  DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.initialize %s",
+                     this->filename.c_str());
 }
 
-void ChromeWriter::log(int index, ConstEventNameType event_name,
-                       ConstEventNameType category, TimeResolution start_time,
-                       TimeResolution duration, MetadataMap *metadata,
-                       ProcessID process_id, ThreadID thread_id) {
-  DFTRACER_LOG_DEBUG("ChromeWriter.log", "");
+void PerfettoChromeFileWriter::log(int index, ConstEventNameType event_name,
+                                   ConstEventNameType category,
+                                   TimeResolution start_time,
+                                   TimeResolution duration,
+                                   MetadataMap *metadata, ProcessID process_id,
+                                   ThreadID thread_id) {
+  DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.log", "");
 
   if (fh != nullptr) {
     write_event_json_to_buffer(index, event_name, category, start_time,
                                duration, metadata, process_id, thread_id);
     flush_buffer_to_file(false);
   } else {
-    DFTRACER_LOG_ERROR("ChromeWriter.log invalid", "");
+    DFTRACER_LOG_ERROR("PerfettoChromeFileWriter.log invalid", "");
   }
   is_first_write = false;
 }
 
-void ChromeWriter::log_metadata(int index, ConstEventNameType name,
-                                ConstEventNameType value, ConstEventNameType ph,
-                                ProcessID process_id, ThreadID tid,
-                                bool is_string) {
-  DFTRACER_LOG_DEBUG("ChromeWriter.log_metadata", "");
+void PerfettoChromeFileWriter::log_metadata(int index, ConstEventNameType name,
+                                            ConstEventNameType value,
+                                            ConstEventNameType ph,
+                                            ProcessID process_id, ThreadID tid,
+                                            bool is_string) {
+  DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.log_metadata", "");
 
   if (fh != nullptr) {
     write_metadata_json_to_buffer(index, name, value, ph, process_id, tid,
                                   is_string);
     flush_buffer_to_file(false);
   } else {
-    DFTRACER_LOG_ERROR("ChromeWriter.log_metadata invalid", "");
+    DFTRACER_LOG_ERROR("PerfettoChromeFileWriter.log_metadata invalid", "");
   }
   is_first_write = false;
 }
 
-void ChromeWriter::finalize(bool has_entry) {
+void PerfettoChromeFileWriter::finalize(bool has_entry) {
   if (this->init) {
-    DFTRACER_LOG_DEBUG("ChromeWriter.finalize", "");
+    DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.finalize", "");
     if (fh != nullptr) {
       DFTRACER_LOG_INFO("Profiler finalizing writer %s", filename.c_str());
       flush_buffer_to_file(true);
@@ -152,7 +156,7 @@ void ChromeWriter::finalize(bool has_entry) {
   }
 }
 
-void ChromeWriter::write_event_json_to_buffer(
+void PerfettoChromeFileWriter::write_event_json_to_buffer(
     int index, ConstEventNameType event_name, ConstEventNameType category,
     TimeResolution start_time, TimeResolution duration, MetadataMap *metadata,
     ProcessID process_id, ThreadID thread_id) {
@@ -182,11 +186,12 @@ void ChromeWriter::write_event_json_to_buffer(
     current_index++;
   }
 
-  DFTRACER_LOG_DEBUG("ChromeWriter.write_event_json_to_buffer %s on %s",
-                     buffer.data() + previous_index, this->filename.c_str());
+  DFTRACER_LOG_DEBUG(
+      "PerfettoChromeFileWriter.write_event_json_to_buffer %s on %s",
+      buffer.data() + previous_index, this->filename.c_str());
 }
 
-void ChromeWriter::write_metadata_json_to_buffer(
+void PerfettoChromeFileWriter::write_metadata_json_to_buffer(
     int index, ConstEventNameType name, ConstEventNameType value,
     ConstEventNameType ph, ProcessID process_id, ThreadID thread_id,
     bool is_string) {
@@ -220,8 +225,50 @@ void ChromeWriter::write_metadata_json_to_buffer(
     current_index++;
   }
 
-  DFTRACER_LOG_DEBUG("ChromeWriter.write_metadata_json_to_buffer %s on %s",
-                     buffer.data() + previous_index, this->filename.c_str());
+  DFTRACER_LOG_DEBUG(
+      "PerfettoChromeFileWriter.write_metadata_json_to_buffer %s on %s",
+      buffer.data() + previous_index, this->filename.c_str());
+}
+
+std::string PerfettoChromeFileWriter::convert_metadata_to_json_string(
+    MetadataMap *metadata) {
+  std::stringstream metadata_stream;
+  if (metadata != nullptr && !metadata->empty()) {
+    metadata_stream << R"(,"args":{"hhash":")" << this->hostname_hash << "\"";
+    for (const auto &item : *metadata) {
+      metadata_stream << ",";
+      metadata_stream << "\"" << item.first << "\":";
+      if (item.second.type() == typeid(unsigned int)) {
+        metadata_stream << std::any_cast<unsigned int>(item.second);
+      } else if (item.second.type() == typeid(int)) {
+        metadata_stream << std::any_cast<int>(item.second);
+      } else if (item.second.type() == typeid(const char *)) {
+        metadata_stream << "\"" << std::any_cast<const char *>(item.second)
+                        << "\"";
+      } else if (item.second.type() == typeid(std::string)) {
+        metadata_stream << "\"" << std::any_cast<std::string>(item.second)
+                        << "\"";
+      } else if (item.second.type() == typeid(size_t)) {
+        metadata_stream << std::any_cast<size_t>(item.second);
+      } else if (item.second.type() == typeid(uint16_t)) {
+        metadata_stream << std::any_cast<uint16_t>(item.second);
+      } else if (item.second.type() == typeid(HashType)) {
+        metadata_stream << "\"" << std::any_cast<HashType>(item.second) << "\"";
+      } else if (item.second.type() == typeid(long)) {
+        metadata_stream << std::any_cast<long>(item.second);
+      } else if (item.second.type() == typeid(ssize_t)) {
+        metadata_stream << std::any_cast<ssize_t>(item.second);
+      } else if (item.second.type() == typeid(off_t)) {
+        metadata_stream << std::any_cast<off_t>(item.second);
+      } else if (item.second.type() == typeid(off64_t)) {
+        metadata_stream << std::any_cast<off64_t>(item.second);
+      } else {
+        DFTRACER_LOG_INFO("No conversion for type %s", item.first.c_str());
+      }
+    }
+    metadata_stream << "}";
+  }
+  return metadata_stream.str();
 }
 
 }  // namespace dftracer
