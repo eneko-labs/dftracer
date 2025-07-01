@@ -1,16 +1,26 @@
 {
     "cmake.configureArgs": [
-        "-DDFTRACER_INSTALL_DEPENDENCIES=OFF",
-        "-DDFTRACER_ENABLE_TESTS=ON",
-        "-DENABLE_PAPER_TESTS=OFF",
+        "-DCMAKE_C_COMPILER=/usr/tce/bin/gcc",
+        "-DCMAKE_CXX_COMPILER=/usr/tce/bin/g++",
+        "-DCMAKE_INSTALL_PREFIX=/usr/workspace/izzet/projects/dftracer-streaming/install",
+        "-DDFTRACER_BUILD_DEPENDENCIES=OFF",
+        "-DDFTRACER_DISABLE_HWLOC=ON",
         "-DDFTRACER_ENABLE_DLIO_BENCHMARK_TESTS=OFF",
-        "-DDFTRACER_DISABLE_HWLOC=OFF",
-        "-DCMAKE_INSTALL_PREFIX=/usr/workspace/haridev/dftracer/install"
+        "-DDFTRACER_ENABLE_PAPER_TESTS=OFF",
+        "-DDFTRACER_ENABLE_TESTS=ON",
+        "-DDFTRACER_INSTALL_DEPENDENCIES=OFF",
+        "-DDFTRACER_WRITER_TYPE=PERFETTO_PROTO_FILE"
     ],
     "cmake.configureEnvironment": {
-        "DARSHAN_PRELOAD_LIB": "/usr/WS2/haridev/spack/opt/spack/linux-rhel8-zen2/gcc-10.3.1/darshan-runtime-3.4.4-vckxthkq2hzzxnwmk4owtzcnfmjwl23s/lib/libdarshan.so",
+        // "DARSHAN_PRELOAD_LIB": "/usr/WS2/haridev/spack/opt/spack/linux-rhel8-zen2/gcc-10.3.1/darshan-runtime-3.4.4-vckxthkq2hzzxnwmk4owtzcnfmjwl23s/lib/libdarshan.so",
         "DFTRACER_TEST_MACHINE": "corona"
     },
+    "C_Cpp.intelliSenseMemoryLimit": 16384,
+    "cSpell.words": [
+        "DFTRACER",
+        "dlio"
+    ],
+    "editor.formatOnSave": true,
     "files.associations": {
         "any": "cpp",
         "functional": "cpp",
@@ -96,9 +106,5 @@
         "filesystem": "cpp",
         "*.in": "cpp"
     },
-    "editor.formatOnSave": true,
-    "cSpell.words": [
-        "DFTRACER",
-        "dlio"
-    ]
+    "git.ignoreLimitWarning": true
 }
