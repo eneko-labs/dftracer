@@ -7,14 +7,20 @@
 #include <unordered_map>
 #include <vector>
 
+#include "dftracer/dftracer_config.hpp"
 #include "dftracer/core/typedef.h"
+#if DFTRACER_WRITER_TYPE_PERFETTO_PROTO_FILE
+#include "dftracer/writer/perfetto_proto_file_writer.h"
+static dftracer::PerfettoProtoFileWriter writer_instance;
+#elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE
 #include "dftracer/writer/perfetto_chrome_file_writer.h"
-
 static dftracer::PerfettoChromeFileWriter writer_instance;
+#endif
 
 int main(int argc, char** argv) {
-  std::string tmp_output_file = "perf_chrome_trace.json";
+  std::string tmp_output_file = "file_writer.out";
   int num_events_to_log = 10000;
+  size_t writer_buffer_size = 4 * 1024 * 1024;  // 4 MB default
 
   if (argc > 1) {
     tmp_output_file = argv[1];
@@ -31,7 +37,20 @@ int main(int argc, char** argv) {
       return EXIT_FAILURE;
     }
   }
+   if (argc > 3) {
+    try {
+      writer_buffer_size = std::stoull(argv[3]);
+    } catch (const std::invalid_argument& ia) {
+      std::cerr << "Invalid argument for writer buffer size: " << argv[3]
+                << std::endl;
+      return EXIT_FAILURE;
+    } catch (const std::out_of_range& oor) {
+      std::cerr << "Writer buffer size out of range: " << argv[3] << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
 
+  writer_instance.set_write_buffer_size(writer_buffer_size);
   writer_instance.initialize(const_cast<char*>(tmp_output_file.c_str()), false,
                              const_cast<char*>("test_host_hash_perf"));
 
@@ -65,19 +84,17 @@ int main(int argc, char** argv) {
   double duration_s = static_cast<double>(duration_ms) / 1000.0;
 
   std::cout << std::endl;
-  std::cout << "[ PERFORMANCE ] PerfettoChromeFileWriter: Logged "
-            << num_events_to_log
+  std::cout << "[ PERFORMANCE ] FileWriter: Logged " << num_events_to_log
             << " main events (plus some metadata events) in " << duration_s
             << " seconds." << std::endl;
   if (duration_s > 0) {
-    std::cout << "[ PERFORMANCE ] PerfettoChromeFileWriter: Throughput: "
+    std::cout << "[ PERFORMANCE ] FileWriter: Throughput: "
               << static_cast<double>(num_events_to_log) / duration_s
               << " main events/sec." << std::endl;
   } else {
-    std::cout
-        << "[ PERFORMANCE ] PerfettoChromeFileWriter: Duration too short to "
-           "calculate throughput accurately."
-        << std::endl;
+    std::cout << "[ PERFORMANCE ] FileWriter: Duration too short to "
+                 "calculate throughput accurately."
+              << std::endl;
   }
 
   std::ifstream file(tmp_output_file);

@@ -14,6 +14,7 @@ class WriterBase {
  protected:
   std::string filename;
   HashType hostname_hash;
+  bool enable_compression = false;
   bool enable_core_affinity = false;
   bool include_metadata = false;
   bool init = false;

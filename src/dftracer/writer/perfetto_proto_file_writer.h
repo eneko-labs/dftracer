@@ -18,11 +18,13 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+
 namespace dftracer {
 class PerfettoProtoFileWriter : public WriterBase {
  private:
   std::mutex mtx;
   std::unique_ptr<perfetto::TracingSession> tracing_session;
+  size_t write_buffer_size;
 
   void stream_main(std::unique_ptr<perfetto::TracingSession> session);
 
@@ -31,8 +33,10 @@ class PerfettoProtoFileWriter : public WriterBase {
     DFTRACER_LOG_DEBUG("PerfettoProtoFileWriter.PerfettoProtoFileWriter", "");
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
-    include_metadata = conf->metadata;
+    enable_compression = conf->compression;
     enable_core_affinity = conf->core_affinity;
+    include_metadata = conf->metadata;
+    write_buffer_size = conf->write_buffer_size;
   }
   ~PerfettoProtoFileWriter() {
     DFTRACER_LOG_DEBUG("Destructing PerfettoProtoFileWriter", "");
@@ -46,6 +50,9 @@ class PerfettoProtoFileWriter : public WriterBase {
                     ConstEventNameType value, ConstEventNameType ph,
                     ProcessID process_id, ThreadID tid, bool is_string = true);
   void finalize(bool has_entry);
+  void set_write_buffer_size(size_t buffer_size) {
+    write_buffer_size = buffer_size;
+  }
 };
 }  // namespace dftracer
 

@@ -32,10 +32,11 @@ if(DFTRACER_WRITER_TYPE MATCHES ".*PROTO.*")
     LOG_DOWNLOAD ON
   )
 
+  set(PERFETTO_SDK_DIR "${CMAKE_BINARY_DIR}/src/perfetto/sdk")
+
   set(PERFETTO_OUTPUT_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib64")
   set(PERFETTO_OUTPUT_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
 
-  set(PERFETTO_SDK_DIR "${CMAKE_BINARY_DIR}/src/perfetto/sdk")
   set(PERFETTO_SDK_HEADER_PATH "${PERFETTO_OUTPUT_INCLUDE_DIR}/perfetto.h")
   set(PERFETTO_SDK_LIB_PATH "${PERFETTO_OUTPUT_LIB_DIR}/libperfetto_sdk.a")
 
@@ -60,5 +61,4 @@ if(DFTRACER_WRITER_TYPE STREQUAL "PERFETTO_PROTO_ZMQ")
   install_external_project(zeromq 4.3.5 "zeromq" https://github.com/zeromq/libzmq.git v4.3.5 ${CMAKE_INSTALL_PREFIX} "-DBUILD_SHARED=ON;-DENABLE_CURVE=OFF;-DZMQ_BUILD_TESTS=OFF")
   install_external_project(cppzmq 4.10.0 "cppzmq" https://github.com/zeromq/cppzmq.git v4.9.0 ${CMAKE_INSTALL_PREFIX} "-DCPPZMQ_BUILD_TESTS=OFF")
   add_dependencies(cppzmq zeromq)
-  add_dependencies(zeromq yaml-cpp)
 endif()

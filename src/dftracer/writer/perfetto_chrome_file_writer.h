@@ -26,13 +26,12 @@ namespace dftracer {
 class PerfettoChromeFileWriter : public WriterBase {
  protected:
   static const int MAX_LINE_SIZE = 16 * 1024L;
-  bool enable_compression;
-  bool is_first_write = true;
+  std::mutex mtx;
+  std::vector<char> buffer;
   FILE *fh;
   size_t current_index = 0;
   size_t write_buffer_size;
-  std::vector<char> buffer;
-  std::mutex mtx;
+  bool is_first_write = true;
 
   inline size_t flush_buffer_to_file(bool force = false) {
     std::unique_lock lock(mtx);
@@ -64,8 +63,9 @@ class PerfettoChromeFileWriter : public WriterBase {
     DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.PerfettoChromeFileWriter", "");
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
-    enable_core_affinity = conf->core_affinity;
     enable_compression = conf->compression;
+    enable_core_affinity = conf->core_affinity;
+    include_metadata = conf->metadata;
     write_buffer_size = conf->write_buffer_size;
     {
       std::unique_lock lock(mtx);
@@ -85,6 +85,12 @@ class PerfettoChromeFileWriter : public WriterBase {
                     ConstEventNameType value, ConstEventNameType ph,
                     ProcessID process_id, ThreadID tid, bool is_string = true);
   void finalize(bool has_entry);
+  void set_write_buffer_size(size_t buffer_size) {
+    std::unique_lock lock(mtx);
+    write_buffer_size = buffer_size;
+    buffer = std::vector<char>(write_buffer_size + MAX_LINE_SIZE);
+    current_index = 0;
+  }
 
  private:
   std::string convert_metadata_to_json_string(MetadataMap *metadata);

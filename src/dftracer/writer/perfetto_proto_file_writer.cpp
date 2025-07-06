@@ -36,7 +36,7 @@ void PerfettoProtoFileWriter::initialize(char *filename, bool throw_error,
   perfetto::TrackEvent::Register();
 
   perfetto::TraceConfig trace_config;
-  trace_config.add_buffers()->set_size_kb(1024 * 16);  // 16MB buffer
+  trace_config.add_buffers()->set_size_kb(write_buffer_size / 1024);
   auto *data_source_config = trace_config.add_data_sources()->mutable_config();
   data_source_config->set_name("track_event");
 
