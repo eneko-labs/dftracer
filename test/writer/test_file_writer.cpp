@@ -54,25 +54,30 @@ int main(int argc, char** argv) {
   writer_instance.initialize(const_cast<char*>(tmp_output_file.c_str()), false,
                              const_cast<char*>("test_host_hash_perf"));
 
+  const std::string detail_str = "performance_test_event_detail";
+  const std::string another_key_str = "another_value_for_metadata_map";
+  std::vector<std::string> event_names;
+  event_names.reserve(num_events_to_log);
+  for (int i = 0; i < num_events_to_log; ++i) {
+    event_names.push_back("event_name_perf_" + std::to_string(i));
+  }
+
   auto start_time = std::chrono::high_resolution_clock::now();
+  unsigned long long current_ts =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          start_time.time_since_epoch())
+          .count();
+  srand(time(0));
 
   for (int i = 0; i < num_events_to_log; ++i) {
     std::unordered_map<std::string, std::any> m;
     m["iteration"] = i;
-    m["detail"] = std::string(
-        "performance_test_event_detail_long_enough_to_test_string_handling");
-    m["another_key"] = std::string("another_value_for_metadata_map_testing");
-    writer_instance.log(
-        i, ("event_name_perf_" + std::to_string(i)).c_str(), "perf_category",
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch())
-            .count(),
-        100 + (i % 75), &m, 12345, 54321);
-    if (i % 1000 == 0) {
-      writer_instance.log_metadata(i, "metadata_event_name",
-                                   "metadata_event_value", "process_name_perf",
-                                   12345, 54321);
-    }
+    m["detail"] = detail_str;
+    m["another_key"] = another_key_str;
+    int duration = 100 + (rand() % 101);
+    writer_instance.log(i, event_names[i].c_str(), "perf_category", current_ts,
+                        duration, &m, 12345, 54321);
+    current_ts += duration + 1;
   }
 
   writer_instance.finalize(true);
