@@ -56,7 +56,7 @@ class PerfettoChromeFileWriter : public WriterBase {
 
  public:
   PerfettoChromeFileWriter()
-      : is_first_write(false), fh(nullptr), write_buffer_size(0) {
+      : fh(nullptr), write_buffer_size(0), is_first_write(false) {
     DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.PerfettoChromeFileWriter", "");
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
