@@ -1,9 +1,5 @@
-//
-// Created by haridev on 3/28/23.
-//
-
-#ifndef DFTRACER_PERFETTO_CHROME_FILE_WRITER_H
-#define DFTRACER_PERFETTO_CHROME_FILE_WRITER_H
+#ifndef DFTRACER_PERFETTO_CHROME_ZMQ_WRITER_H
+#define DFTRACER_PERFETTO_CHROME_ZMQ_WRITER_H
 
 #include <assert.h>
 #include <dftracer/core/constants.h>
@@ -21,21 +17,23 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <zmq.hpp>
 
 namespace dftracer {
-class PerfettoChromeFileWriter : public PerfettoChromeWriterBase {
+class PerfettoChromeZMQWriter : public PerfettoChromeWriterBase {
  private:
-  FILE *fh;
+  std::unique_ptr<zmq::context_t> context;
+  std::unique_ptr<zmq::socket_t> socket;
 
  protected:
   size_t flush_buffer_to_destination(bool force = false) override;
 
  public:
-  PerfettoChromeFileWriter() : fh(nullptr) {
-    DFTRACER_LOG_DEBUG("PerfettoChromeFileWriter.PerfettoChromeFileWriter", "");
+  PerfettoChromeZMQWriter() {
+    DFTRACER_LOG_DEBUG("PerfettoChromeZMQWriter.PerfettoChromeZMQWriter", "");
   }
-  ~PerfettoChromeFileWriter() {
-    DFTRACER_LOG_DEBUG("Destructing PerfettoChromeFileWriter", "");
+  ~PerfettoChromeZMQWriter() {
+    DFTRACER_LOG_DEBUG("Destructing PerfettoChromeZMQWriter", "");
   }
   void initialize(char *filename, bool throw_error,
                   HashType hostname_hash) override;
@@ -43,4 +41,4 @@ class PerfettoChromeFileWriter : public PerfettoChromeWriterBase {
 };
 }  // namespace dftracer
 
-#endif  // DFTRACER_PERFETTO_CHROME_FILE_WRITER_H
+#endif  // DFTRACER_PERFETTO_CHROME_ZMQ_WRITER_H

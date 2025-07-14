@@ -57,7 +57,7 @@ if(DFTRACER_WRITER_TYPE MATCHES ".*PROTO.*")
   add_custom_target(perfetto_sdk ALL DEPENDS ${PERFETTO_SDK_LIB_PATH})
 endif()
 
-if(DFTRACER_WRITER_TYPE STREQUAL "PERFETTO_PROTO_ZMQ")
+if(DFTRACER_WRITER_TYPE MATCHES ".*ZMQ.*")
   install_external_project(zeromq 4.3.5 "zeromq" https://github.com/zeromq/libzmq.git v4.3.5 ${CMAKE_INSTALL_PREFIX} "-DBUILD_SHARED=ON;-DENABLE_CURVE=OFF;-DZMQ_BUILD_TESTS=OFF")
   install_external_project(cppzmq 4.10.0 "cppzmq" https://github.com/zeromq/cppzmq.git v4.9.0 ${CMAKE_INSTALL_PREFIX} "-DCPPZMQ_BUILD_TESTS=OFF")
   add_dependencies(cppzmq zeromq)

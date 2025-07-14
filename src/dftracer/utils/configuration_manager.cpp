@@ -58,7 +58,7 @@ dftracer::ConfigurationManager::ConfigurationManager()
       bind_signals(false),
       throw_error(false),
       write_buffer_size(10),
-      writer_type(WriterType::CHROME) {
+      writer_type(WriterType::PERFETTO_CHROME_FILE) {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {

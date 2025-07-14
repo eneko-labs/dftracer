@@ -18,6 +18,8 @@
 #include <dftracer/writer/perfetto_proto_zmq_writer.h>
 #elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE
 #include <dftracer/writer/perfetto_chrome_file_writer.h>
+#elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_ZMQ
+#include <dftracer/writer/perfetto_chrome_zmq_writer.h>
 #endif
 #include <libgen.h>
 #include <sys/time.h>
@@ -49,6 +51,8 @@ using DFTWriter = dftracer::PerfettoProtoFileWriter;
 using DFTWriter = dftracer::PerfettoProtoZMQWriter;
 #elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_FILE
 using DFTWriter = dftracer::PerfettoChromeFileWriter;
+#elif DFTRACER_WRITER_TYPE_PERFETTO_CHROME_ZMQ
+using DFTWriter = dftracer::PerfettoChromeZMQWriter;
 #endif
 
 class DFTLogger {

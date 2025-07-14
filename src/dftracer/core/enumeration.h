@@ -5,8 +5,10 @@
 #ifndef DFTRACER_ENUMERATION_H
 #define DFTRACER_ENUMERATION_H
 enum WriterType : uint8_t {
-  CHROME = 0,
-  ZEROMQ = 1,
+  PERFETTO_CHROME_FILE = 0,
+  PERFETTO_CHROME_ZMQ = 1,
+  PERFETTO_PROTO_FILE = 2,
+  PERFETTO_PROTO_ZMQ = 3,
 };
 enum ProfilerStage : uint8_t {
   PROFILER_INIT = 0,
@@ -49,12 +51,14 @@ inline void convert(const std::string &s, cpplogger::LoggerType &type) {
 }
 
 inline void convert(const std::string &s, WriterType &type) {
-  if (s == "CHROME") {
-    type = WriterType::CHROME;
-  } else if (s == "ZEROMQ") {
-    type = WriterType::ZEROMQ;
+  if (s == "PERFETTO_CHROME_ZMQ") {
+    type = WriterType::PERFETTO_CHROME_ZMQ;
+  } else if (s == "PERFETTO_PROTO_FILE") {
+    type = WriterType::PERFETTO_PROTO_FILE;
+  } else if (s == "PERFETTO_PROTO_ZMQ") {
+    type = WriterType::PERFETTO_PROTO_ZMQ;
   } else {
-    type = WriterType::CHROME;  // Default to CHROME
+    type = WriterType::PERFETTO_CHROME_FILE;  // Default to CHROME FILE
   }
 }
 

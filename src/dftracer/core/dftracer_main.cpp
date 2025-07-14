@@ -203,12 +203,17 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
       if (_log_file == nullptr) {
         if (!conf->log_file.empty()) {
           DFTRACER_LOG_DEBUG("Conf has log file %s", conf->log_file.c_str());
-          if (conf->writer_type == WriterType::CHROME) {
+          if (conf->writer_type == WriterType::PERFETTO_CHROME_ZMQ ||
+              conf->writer_type == WriterType::PERFETTO_PROTO_ZMQ) {
+            this->log_file = std::string(conf->log_file);
+          } else if (conf->writer_type == WriterType::PERFETTO_PROTO_FILE) {
+            this->log_file = std::string(conf->log_file) + "-" + exec_name +
+                             "-" + std::to_string(this->process_id) + "-" +
+                             log_file_suffix + ".ptrace";
+          } else {
             this->log_file = std::string(conf->log_file) + "-" + exec_name +
                              "-" + std::to_string(this->process_id) + "-" +
                              log_file_suffix + ".pfw";
-          } else {
-            this->log_file = std::string(conf->log_file);
           }
         } else {  // GCOV_EXCL_START
           DFTRACER_LOG_ERROR(DFTRACER_UNDEFINED_LOG_FILE_MSG, "");
