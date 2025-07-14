@@ -36,7 +36,9 @@ void PerfettoProtoFileWriter::initialize(char *filename, bool throw_error,
   perfetto::TrackEvent::Register();
 
   perfetto::TraceConfig trace_config;
-  trace_config.add_buffers()->set_size_kb(write_buffer_size / 1024);
+  trace_config.set_flush_period_ms(200);
+  auto *buffer_config = trace_config.add_buffers();
+  buffer_config->set_size_kb(write_buffer_size / 1024);
   auto *data_source_config = trace_config.add_data_sources()->mutable_config();
   data_source_config->set_name("track_event");
 
@@ -70,7 +72,6 @@ void PerfettoProtoFileWriter::log(int index, ConstEventNameType event_name,
     DFTRACER_LOG_ERROR("PerfettoProtoFileWriter not initialized", "");
     return;
   }
-  std::lock_guard<std::mutex> lock(mtx);
 
   perfetto::TrackEvent::Trace([&](perfetto::TrackEvent::TraceContext ctx) {
     auto packet = ctx.NewTracePacket();

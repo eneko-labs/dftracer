@@ -22,7 +22,6 @@
 namespace dftracer {
 class PerfettoProtoFileWriter : public WriterBase {
  private:
-  std::mutex mtx;
   std::unique_ptr<perfetto::TracingSession> tracing_session;
   size_t write_buffer_size;
 
