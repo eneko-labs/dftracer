@@ -25,8 +25,8 @@ bool dftracer::Singleton<
 
 namespace dftracer {
 void PerfettoProtoZMQWriter::initialize(char *filename, bool throw_error,
-                                        HashType hostname_hash) {
-  this->hostname_hash = hostname_hash;
+                                        Hostname hostname) {
+  this->hostname = hostname;
   this->throw_error = throw_error;
   this->filename = filename;
 
@@ -91,8 +91,8 @@ void PerfettoProtoZMQWriter::log(int index, ConstEventNameType event_name,
     legacy_event->set_tid_override(thread_id);
 
     auto *hostname_annot = event->add_debug_annotations();
-    hostname_annot->set_name("hhash");
-    hostname_annot->set_string_value(this->hostname_hash);
+    hostname_annot->set_name(DFT_HOST_KEY);
+    hostname_annot->set_string_value(this->hostname);
     if (metadata) {
       for (auto const &[key, val] : *metadata) {
         auto *debug_annot = event->add_debug_annotations();

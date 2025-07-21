@@ -123,9 +123,13 @@ class DFTLogger {
     this->is_init = true;
   }
   ~DFTLogger() {
+#if DFTRACER_HASHING_ENABLE
     for (auto &hash : computed_hash) {
-      if (hash.second) free(hash.second);
+      if (hash.second) {
+        free(hash.second);
+      }
     }
+#endif
   }
 
   inline HashType get_hash(char *name) {
@@ -148,16 +152,22 @@ class DFTLogger {
       tid = df_gettid();
     }
     this->writer = dftracer::Singleton<DFTWriter>::get_instance();
+#if DFTRACER_HASHING_ENABLE
     HashType hostname_hash;
     HashType cmd_hash;
     HashType exec_hash;
+#endif
     if (this->writer != nullptr) {
       char hostname[256];
       gethostname(hostname, 256);
+#if DFTRACER_HASHING_ENABLE
       hostname_hash = get_hash(hostname);
       this->writer->initialize(log_file.data(), this->throw_error,
                                hostname_hash);
       hostname_hash = hash_and_store(hostname, METADATA_NAME_HOSTNAME_HASH);
+#else
+      this->writer->initialize(log_file.data(), this->throw_error, hostname);
+#endif
       char thread_name[128];
       auto size = sprintf(thread_name, "%lu", this->process_id);
       thread_name[size] = '\0';
@@ -169,8 +179,10 @@ class DFTLogger {
       MetadataMap *metadata = nullptr;
       if (include_metadata) {
         metadata = new MetadataMap();
+#if DFTRACER_HASHING_ENABLE
         cmd_hash = hash_and_store(cmd.data(), METADATA_NAME_STRING_HASH);
         exec_hash = hash_and_store(exec_name.data(), METADATA_NAME_STRING_HASH);
+#endif
 #ifdef DFTRACER_GIT_VERSION
         metadata->insert_or_assign("version", DFTRACER_GIT_VERSION);
 #else
@@ -178,8 +190,13 @@ class DFTLogger {
         metadata->insert_or_assign("version", DFTRACER_VERSION);
 #endif
 #endif
+#if DFTRACER_HASHING_ENABLE
         metadata->insert_or_assign("exec_hash", exec_hash);
         metadata->insert_or_assign("cmd_hash", cmd_hash);
+#else
+        metadata->insert_or_assign("exec_name", exec_name.data());
+        metadata->insert_or_assign("cmd_name", cmd.data());
+#endif
         time_t ltime;       /* calendar time */
         ltime = time(NULL); /* get current cal time */
         char timestamp[1024];
@@ -438,6 +455,7 @@ class DFTLogger {
 #define DFT_LOGGER_INIT() dftracer::Singleton<DFTLogger>::get_instance()
 #define DFT_LOGGER_FINI() \
   dftracer::Singleton<DFTLogger>::get_instance()->finalize()
+
 #define DFT_LOGGER_UPDATE(value)               \
   if (trace && this->logger->include_metadata) \
     metadata->insert_or_assign(#value, value);
@@ -449,20 +467,21 @@ class DFTLogger {
     DFT_LOGGER_UPDATE(value##_hash);                                  \
   }
 
-#define DFT_LOGGER_START(entity)                           \
-  DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__); \
-  HashType fhash = is_traced(entity, __FUNCTION__);        \
-  bool trace = fhash != NO_HASH_DEFAULT;                   \
-  TimeResolution start_time = 0;                           \
-  MetadataMap *metadata = nullptr;                         \
-  if (trace) {                                             \
-    if (this->logger->include_metadata) {                  \
-      metadata = new MetadataMap();                        \
-      DFT_LOGGER_UPDATE(fhash);                            \
-    }                                                      \
-    this->logger->enter_event();                           \
-    start_time = this->logger->get_time();                 \
+#define DFT_LOGGER_START(entity)                               \
+  DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__);     \
+  HashType hash_or_value = is_traced(entity, __FUNCTION__);    \
+  bool trace = hash_or_value != NO_HASH_DEFAULT;               \
+  TimeResolution start_time = 0;                               \
+  MetadataMap *metadata = nullptr;                             \
+  if (trace) {                                                 \
+    if (this->logger->include_metadata) {                      \
+      metadata = new MetadataMap();                            \
+      metadata->insert_or_assign(DFT_FILE_KEY, hash_or_value); \
+    }                                                          \
+    this->logger->enter_event();                               \
+    start_time = this->logger->get_time();                     \
   }
+
 #define DFT_LOGGER_START_ALWAYS()                          \
   DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__); \
   bool trace = true;                                       \

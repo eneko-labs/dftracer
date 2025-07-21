@@ -6,9 +6,9 @@
 #define DFTRACER_STDIO_H
 
 #include <brahma/brahma.h>
+#include <dftracer/core/constants.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/typedef.h>
-#include <dftracer/core/constants.h>
 #include <dftracer/df_logger.h>
 #include <dftracer/utils/utils.h>
 #include <fcntl.h>
@@ -43,11 +43,19 @@ class STDIODFTracer : public STDIO {
     DFTRACER_LOG_DEBUG("Calling STDIODFTracer.is_traced with filename for %s",
                        func);
     if (stop_trace) return NO_HASH_DEFAULT;
-    if (trace_all_files)
+    if (trace_all_files) {
+#if DFTRACER_HASHING_ENABLE
       return logger->hash_and_store(filename, METADATA_NAME_FILE_HASH);
-    else {
+#else
+      return filename;
+#endif
+    } else {
       const char *trace_file = is_traced_common(filename, func);
+#if DFTRACER_HASHING_ENABLE
       return logger->hash_and_store(trace_file, METADATA_NAME_FILE_HASH);
+#else
+      return trace_file;
+#endif
     }
   }
 
@@ -71,7 +79,7 @@ class STDIODFTracer : public STDIO {
     DFTRACER_LOG_DEBUG("Finalizing STDIODFTracer", "");
     stop_trace = true;
   }
-  ~STDIODFTracer(){};
+  ~STDIODFTracer() {};
 
   static std::shared_ptr<STDIODFTracer> get_instance(bool trace_all = false) {
     DFTRACER_LOG_DEBUG("STDIO class get_instance", "");

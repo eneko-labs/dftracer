@@ -37,8 +37,7 @@ class PerfettoChromeFileWriter : public PerfettoChromeWriterBase {
   ~PerfettoChromeFileWriter() {
     DFTRACER_LOG_DEBUG("Destructing PerfettoChromeFileWriter", "");
   }
-  void initialize(char *filename, bool throw_error,
-                  HashType hostname_hash) override;
+  void initialize(char *filename, bool throw_error, Hostname hostname) override;
   void finalize(bool has_entry) override;
 };
 }  // namespace dftracer

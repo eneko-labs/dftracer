@@ -35,8 +35,7 @@ class PerfettoChromeZMQWriter : public PerfettoChromeWriterBase {
   ~PerfettoChromeZMQWriter() {
     DFTRACER_LOG_DEBUG("Destructing PerfettoChromeZMQWriter", "");
   }
-  void initialize(char *filename, bool throw_error,
-                  HashType hostname_hash) override;
+  void initialize(char *filename, bool throw_error, Hostname hostname) override;
   void finalize(bool has_entry) override;
 };
 }  // namespace dftracer

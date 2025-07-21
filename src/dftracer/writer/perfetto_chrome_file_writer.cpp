@@ -49,8 +49,12 @@ size_t PerfettoChromeFileWriter::flush_buffer_to_destination(bool force) {
 }
 
 void PerfettoChromeFileWriter::initialize(char *filename, bool throw_error,
-                                          HashType hostname_hash) {
-  this->hostname_hash = hostname_hash;
+                                          Hostname hostname) {
+#if DFTRACER_HASHING_ENABLE
+  this->hostname = hostname;
+#else
+  this->hostname = std::string(hostname);
+#endif
   this->throw_error = throw_error;
   this->filename = filename;
   if (fh == nullptr) {

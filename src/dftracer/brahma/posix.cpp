@@ -26,7 +26,13 @@ int brahma::POSIXDFTracer::open(const char *pathname, int flags, ...) {
   DFT_LOGGER_UPDATE(flags)
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
-  if (trace) this->trace(ret, fhash);
+  if (trace) {
+#if DFTRACER_HASHING_ENABLE
+    this->trace(ret, fhash);
+#else
+    this->trace(ret, pathname);
+#endif
+  }
   return ret;
 }
 
@@ -37,7 +43,9 @@ int brahma::POSIXDFTracer::close(int fd) {
   DFT_LOGGER_UPDATE(fd);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
-  if (trace) this->remove_trace(fd);
+  if (trace) {
+    this->remove_trace(fd);
+  }
   return ret;
 }
 
@@ -82,7 +90,13 @@ int brahma::POSIXDFTracer::creat64(const char *path, mode_t mode) {
   int ret = __real_creat64(path, mode);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
-  if (trace) this->trace(ret, fhash);
+  if (trace) {
+#if DFTRACER_HASHING_ENABLE
+    this->trace(ret, fhash);
+#else
+    this->trace(ret, path);
+#endif
+  }
   return ret;
 }
 
@@ -103,7 +117,13 @@ int brahma::POSIXDFTracer::open64(const char *path, int flags, ...) {
   DFT_LOGGER_UPDATE(flags)
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
-  if (trace) this->trace(ret, fhash);
+  if (trace) {
+#if DFTRACER_HASHING_ENABLE
+    this->trace(ret, fhash);
+#else
+    this->trace(ret, path);
+#endif
+  }
   return ret;
 }
 
@@ -195,7 +215,11 @@ int brahma::POSIXDFTracer::openat(int dirfd, const char *pathname, int flags,
   DFT_LOGGER_START(dirfd);
   DFT_LOGGER_UPDATE(dirfd);
   DFT_LOGGER_UPDATE(flags);
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(pathname);
+#else
+  DFT_LOGGER_UPDATE(pathname);
+#endif
   int ret = -1;
   if (flags & O_CREAT) {
     va_list args;
@@ -209,7 +233,13 @@ int brahma::POSIXDFTracer::openat(int dirfd, const char *pathname, int flags,
   }
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
-  if (trace) this->trace(ret, fhash);
+  if (trace) {
+#if DFTRACER_HASHING_ENABLE
+    this->trace(ret, fhash);
+#else
+    this->trace(ret, pathname);
+#endif
+  }
   return ret;
 }
 
@@ -321,7 +351,11 @@ int brahma::POSIXDFTracer::chdir(const char *path) {
 int brahma::POSIXDFTracer::link(const char *oldpath, const char *newpath) {
   BRAHMA_MAP_OR_FAIL(link);
   DFT_LOGGER_START(oldpath);
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(newpath);
+#else
+  DFT_LOGGER_UPDATE(newpath);
+#endif
   int ret = __real_link(oldpath, newpath);
   DFT_LOGGER_END();
   return ret;
@@ -333,7 +367,11 @@ int brahma::POSIXDFTracer::linkat(int fd1, const char *path1, int fd2,
   DFT_LOGGER_START(fd1);
   DFT_LOGGER_UPDATE(fd1);
   DFT_LOGGER_UPDATE(fd2);
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(path2);
+#else
+  DFT_LOGGER_UPDATE(path2);
+#endif
   DFT_LOGGER_UPDATE(flag);
   int ret = __real_linkat(fd1, path1, fd2, path2, flag);
   DFT_LOGGER_UPDATE(ret);
@@ -352,7 +390,11 @@ int brahma::POSIXDFTracer::unlink(const char *pathname) {
 int brahma::POSIXDFTracer::symlink(const char *path1, const char *path2) {
   BRAHMA_MAP_OR_FAIL(symlink);
   DFT_LOGGER_START(path1);
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(path2);
+#else
+  DFT_LOGGER_UPDATE(path2);
+#endif
   int ret = __real_symlink(path1, path2);
   DFT_LOGGER_END();
   return ret;
@@ -363,7 +405,11 @@ int brahma::POSIXDFTracer::symlinkat(const char *path1, int fd,
   BRAHMA_MAP_OR_FAIL(symlinkat);
   DFT_LOGGER_START(path1);
   DFT_LOGGER_UPDATE(fd);
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(path2);
+#else
+  DFT_LOGGER_UPDATE(path2);
+#endif
   int ret = __real_symlinkat(path1, fd, path2);
   DFT_LOGGER_END();
   return ret;
@@ -403,7 +449,11 @@ ssize_t brahma::POSIXDFTracer::readlinkat(int fd, const char *path, char *buf,
 int brahma::POSIXDFTracer::rename(const char *oldpath, const char *newpath) {
   BRAHMA_MAP_OR_FAIL(rename);
   DFT_LOGGER_START(oldpath);
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(newpath);
+#else
+  DFT_LOGGER_UPDATE(newpath);
+#endif
   int ret = __real_rename(oldpath, newpath);
   DFT_LOGGER_END();
   return ret;
@@ -591,7 +641,11 @@ int brahma::POSIXDFTracer::execl(const char *pathname, const char *arg, ...) {
 int brahma::POSIXDFTracer::execlp(const char *pathname, const char *arg, ...) {
   BRAHMA_MAP_OR_FAIL(execlp);
   DFT_LOGGER_START_ALWAYS();
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(pathname);
+#else
+  DFT_LOGGER_UPDATE(pathname);
+#endif
   DFT_LOGGER_UPDATE(arg);
   va_list args;
   va_start(args, arg);
@@ -605,7 +659,11 @@ int brahma::POSIXDFTracer::execlp(const char *pathname, const char *arg, ...) {
 int brahma::POSIXDFTracer::execv(const char *pathname, char *const argv[]) {
   BRAHMA_MAP_OR_FAIL(execv);
   DFT_LOGGER_START_ALWAYS();
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(pathname);
+#else
+  DFT_LOGGER_UPDATE(pathname);
+#endif
   const char *val = argv[0];
   int i = 0;
   while (val != NULL) {
@@ -643,7 +701,11 @@ int brahma::POSIXDFTracer::execv(const char *pathname, char *const argv[]) {
 int brahma::POSIXDFTracer::execvp(const char *pathname, char *const argv[]) {
   BRAHMA_MAP_OR_FAIL(execvp);
   DFT_LOGGER_START_ALWAYS();
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(pathname);
+#else
+  DFT_LOGGER_UPDATE(pathname);
+#endif
   const char *val = argv[0];
   int i = 0;
   while (val != NULL) {
@@ -681,7 +743,11 @@ int brahma::POSIXDFTracer::execvpe(const char *pathname, char *const argv[],
                                    char *const envp[]) {
   BRAHMA_MAP_OR_FAIL(execvpe);
   DFT_LOGGER_START_ALWAYS();
+#if DFTRACER_HASHING_ENABLE
   DFT_LOGGER_UPDATE_HASH(pathname);
+#else
+  DFT_LOGGER_UPDATE(pathname);
+#endif
   const char *val = argv[0];
   int i = 0;
   while (val != NULL) {

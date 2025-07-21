@@ -98,15 +98,15 @@ void PerfettoChromeWriterBase::write_metadata_json_to_buffer(
     if (is_string) {
       written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":"%s","name":"%s","value":"%s"}})",
-          is_first_char, index, ph, process_id, thread_id, this->hostname_hash,
-          name, value);
+          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"%s":"%s","name":"%s","value":"%s"}})",
+          is_first_char, index, ph, process_id, thread_id, DFT_HOST_KEY,
+          this->hostname, name, value);
     } else {
       written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":"%s","name":"%s","value":%s}})",
-          is_first_char, index, ph, process_id, thread_id, this->hostname_hash,
-          name, value);
+          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"%s":"%s","name":"%s","value":%s}})",
+          is_first_char, index, ph, process_id, thread_id, DFT_HOST_KEY,
+          this->hostname, name, value);
     }
     current_index += written_size;
     buffer[current_index] = '\n';
@@ -122,7 +122,8 @@ std::string PerfettoChromeWriterBase::convert_metadata_to_json_string(
     MetadataMap *metadata) {
   std::stringstream metadata_stream;
   if (metadata != nullptr && !metadata->empty()) {
-    metadata_stream << R"(,"args":{"hhash":")" << this->hostname_hash << "\"";
+    metadata_stream << R"(,"args":{")" << DFT_HOST_KEY << R"(":")"
+                    << this->hostname << "\"";
     for (const auto &item : *metadata) {
       metadata_stream << ",";
       metadata_stream << "\"" << item.first << "\":";

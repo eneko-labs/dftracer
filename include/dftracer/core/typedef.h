@@ -17,6 +17,10 @@ typedef unsigned long int ThreadID;
 typedef unsigned long int ProcessID;
 typedef char* EventNameType;
 typedef const char* ConstEventNameType;
+#if DFTRACER_HASHING_ENABLE
 typedef char* HashType;
+#else
+typedef const char* HashType;
+#endif
 
 #endif  // DFTRACER_TYPEDEF_H

@@ -9,11 +9,17 @@
 #include <unordered_map>
 #include <vector>
 
+#if DFTRACER_HASHING_ENABLE
+using Hostname = HashType;
+#else
+using Hostname = std::string;
+#endif
+
 namespace dftracer {
 class WriterBase {
  protected:
   std::string filename;
-  HashType hostname_hash;
+  Hostname hostname;
   bool enable_compression = false;
   bool enable_core_affinity = false;
   bool include_metadata = false;
@@ -23,7 +29,7 @@ class WriterBase {
  public:
   virtual ~WriterBase() = default;
   virtual void initialize(char *filename, bool throw_error,
-                          HashType hostname_hash) = 0;
+                          Hostname hostname) = 0;
   virtual void log(int index, ConstEventNameType event_name,
                    ConstEventNameType category, TimeResolution start_time,
                    TimeResolution duration, MetadataMap *metadata,

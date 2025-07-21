@@ -46,7 +46,11 @@ class POSIXDFTracer : public POSIX {
   inline HashType is_traced(const char *filename, const char *func) {
     if (stop_trace) return NO_HASH_DEFAULT;
     if (trace_all_files) {
+#if DFTRACER_HASHING_ENABLE
       return logger->hash_and_store(filename, METADATA_NAME_FILE_HASH);
+#else
+      return filename;
+#endif
     } else {
       const char *tracefile = is_traced_common(filename, func);
       if (tracefile != nullptr) {
@@ -55,7 +59,11 @@ class POSIXDFTracer : public POSIX {
             "filename %s for %s trace %d",
             filename, func, tracefile != nullptr);
       }
+#if DFTRACER_HASHING_ENABLE
       return logger->hash_and_store(tracefile, METADATA_NAME_FILE_HASH);
+#else
+      return tracefile;
+#endif
     }
   }
 

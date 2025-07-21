@@ -43,7 +43,7 @@ class PerfettoProtoZMQWriter : public WriterBase {
   ~PerfettoProtoZMQWriter() {
     DFTRACER_LOG_DEBUG("Destructing PerfettoProtoZMQWriter", "");
   }
-  void initialize(char *filename, bool throw_error, HashType hostname_hash);
+  void initialize(char *filename, bool throw_error, Hostname hostname);
   void log(int index, ConstEventNameType event_name,
            ConstEventNameType category, TimeResolution start_time,
            TimeResolution duration, MetadataMap *metadata, ProcessID process_id,

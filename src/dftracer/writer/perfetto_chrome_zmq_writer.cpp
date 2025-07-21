@@ -52,10 +52,10 @@ size_t PerfettoChromeZMQWriter::flush_buffer_to_destination(bool force) {
 }
 
 void PerfettoChromeZMQWriter::initialize(char* filename, bool throw_error,
-                                         HashType hostname_hash) {
-  this->hostname_hash = hostname_hash;
-  this->throw_error = throw_error;
+                                         Hostname hostname) {
   this->filename = filename;
+  this->hostname = hostname;
+  this->throw_error = throw_error;
 
   context = std::make_unique<zmq::context_t>(1);
   socket = std::make_unique<zmq::socket_t>(*context, zmq::socket_type::push);

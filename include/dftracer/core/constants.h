@@ -32,4 +32,12 @@ static const char SEPARATOR = ';';
 static const int HASH_OUTPUT = 16;
 #define NO_HASH_DEFAULT 0
 
+#if DFTRACER_HASHING_ENABLE
+#define DFT_FILE_KEY "fhash"
+#define DFT_HOST_KEY "hhash"
+#else
+#define DFT_FILE_KEY "fname"
+#define DFT_HOST_KEY "hname"
+#endif
+
 #endif  // DFTRACER_CONSTANTS_H

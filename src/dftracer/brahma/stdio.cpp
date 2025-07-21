@@ -17,7 +17,13 @@ FILE *brahma::STDIODFTracer::fopen64(const char *path, const char *mode) {
   DFT_LOGGER_UPDATE(mode);
   FILE *ret = __real_fopen64(path, mode);
   DFT_LOGGER_END();
-  if (trace) this->trace(ret, fhash);
+  if (trace) {
+#if DFTRACER_HASHING_ENABLE
+    this->trace(ret, fhash);
+#else
+    this->trace(ret, path);
+#endif
+  }
   return ret;
 }
 
@@ -27,7 +33,13 @@ FILE *brahma::STDIODFTracer::fopen(const char *path, const char *mode) {
   DFT_LOGGER_UPDATE(mode);
   FILE *ret = __real_fopen(path, mode);
   DFT_LOGGER_END();
-  if (trace) this->trace(ret, fhash);
+  if (trace) {
+#if DFTRACER_HASHING_ENABLE
+    this->trace(ret, fhash);
+#else
+    this->trace(ret, path);
+#endif
+  }
   return ret;
 }
 
@@ -36,7 +48,9 @@ int brahma::STDIODFTracer::fclose(FILE *fp) {
   DFT_LOGGER_START(fp);
   int ret = __real_fclose(fp);
   DFT_LOGGER_END();
-  if (trace) this->remove_trace(fp);
+  if (trace) {
+    this->remove_trace(fp);
+  }
   return ret;
 }
 
@@ -55,7 +69,7 @@ size_t brahma::STDIODFTracer::fread(void *ptr, size_t size, size_t count,
 size_t brahma::STDIODFTracer::fwrite(const void *ptr, size_t size, size_t count,
                                      FILE *fp) {
   auto handle = fwrite_brahma_handle;
-  (void) handle;
+  (void)handle;
   BRAHMA_MAP_OR_FAIL(fwrite);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(size);
