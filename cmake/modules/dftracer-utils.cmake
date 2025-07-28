@@ -149,6 +149,7 @@ function(install_external_project name version var_name url tag install_prefix c
       -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
       -DCMAKE_INSTALL_PREFIX=${install_prefix}
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       ${configure_args}
       BUILD_COMMAND make -j
       INSTALL_COMMAND make install -j
