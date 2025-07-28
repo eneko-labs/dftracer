@@ -297,11 +297,11 @@ else()
     pkg_check_modules(ZMQ REQUIRED libzmq)
 
     if(ZMQ_FOUND)
-      message(STATUS "[DFTRACER] Found ZeroMQ at ${ZMQ_INCLUDE_DIRS}")
+      message(STATUS "[DFTRACER] Found zmq at ${ZMQ_INCLUDE_DIRS}")
       include_directories(${ZMQ_INCLUDE_DIRS})
       set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${ZMQ_LIBRARIES})
     else()
-      message(FATAL_ERROR "-- [DFTRACER] ZeroMQ is needed for ${PROJECT_NAME} build when DFTRACER_WRITER_TYPE is 'PERFETTO_PROTO_ZMQ'")
+      message(FATAL_ERROR "-- [DFTRACER] zmq is needed for ${PROJECT_NAME} build when DFTRACER_WRITER_TYPE is 'PERFETTO_*_ZMQ'")
     endif()
 
     find_path(CPPZMQ_INCLUDE_DIR zmq.hpp)
