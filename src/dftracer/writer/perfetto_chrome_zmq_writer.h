@@ -8,6 +8,7 @@
 #include <dftracer/utils/posix_internal.h>
 #include <dftracer/utils/utils.h>
 #include <dftracer/writer/perfetto_chrome_writer_base.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include <any>
@@ -38,6 +39,11 @@ class PerfettoChromeZMQWriter : public PerfettoChromeWriterBase {
   void initialize(char *filename, bool throw_error,
                   HashType hostname_hash) override;
   void finalize(bool has_entry) override;
+  /**
+   * @brief Re-initializes the ZMQ socket. This is intended to be called
+   * in a child process after a fork().
+   */
+  void reconnect();
 };
 }  // namespace dftracer
 
