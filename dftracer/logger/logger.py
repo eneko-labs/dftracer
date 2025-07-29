@@ -6,10 +6,12 @@ import logging
 DFTRACER_ENABLE_ENV = "DFTRACER_ENABLE"
 DFTRACER_INIT_ENV = "DFTRACER_INIT"
 DFTRACER_LOG_LEVEL_ENV = "DFTRACER_LOG_LEVEL"
+DFTRACER_WRITER_TYPE_ENV = "DFTRACER_WRITER_TYPE"
 
 DFTRACER_ENABLE = True if os.getenv(DFTRACER_ENABLE_ENV, '0') == '1' else False
 DFTRACER_INIT_PRELOAD = True if os.getenv(DFTRACER_INIT_ENV, 'PRELOAD') == 'PRELOAD' else False
 DFTRACER_LOG_LEVEL = os.getenv(DFTRACER_LOG_LEVEL_ENV, 'ERROR')
+DFTRACER_WRITER_TYPE = os.getenv(DFTRACER_WRITER_TYPE_ENV, 'PERFETTO_CHROME_FILE')
 
 from pathlib import Path
 import inspect
@@ -55,12 +57,13 @@ class dftracer:
 
     @staticmethod
     def initialize_log(logfile, data_dir, process_id):
+        is_streaming = 'ZMQ' in DFTRACER_WRITER_TYPE
         log_file_path = None
-        if logfile:
+        if logfile and not is_streaming:
             log_file_path = Path(logfile)
         outfile = "dft.log"
         if DFTRACER_ENABLE:
-            if log_file_path:
+            if log_file_path and not is_streaming:
                 os.makedirs(log_file_path.parent, exist_ok=True)
                 outfile = os.path.join(log_file_path.parent, "dft.log")
         log_level = logging.ERROR
