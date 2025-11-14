@@ -4,7 +4,7 @@
 
 #ifndef DFTRACER_TEST_UTIL_H
 #define DFTRACER_TEST_UTIL_H
-#include <dftracer/core/logging.h>
+#include <dftracer/core/common/logging.h>
 
 #include <cstring>
 #include <experimental/filesystem>

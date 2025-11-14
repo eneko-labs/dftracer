@@ -5,13 +5,12 @@ requires = [
     "wheel",
     "ninja",
     "cmake>=3.12",
-    "zindex_py==0.0.5",
     "pybind11"
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pydftracer"
+name = "dftracer"
 description = "I/O profiler for deep learning python apps. Specifically for dlio_benchmark."
 readme = "README.md"
 requires-python = '>=3.7'
@@ -51,9 +50,10 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "pybind11", 
-  "zindex_py==0.0.5", 
   "setuptools>=64", 
-  "setuptools-scm>=8"
+  "setuptools-scm>=8",
+  "dftracer-utils>=0.0.5",
+  "pydftracer==2.0.2"
 ]
 
 [project.urls]
@@ -65,6 +65,9 @@ Documentation = "https://dftracer.readthedocs.io/en/latest/"
 [project.optional-dependencies]
 test = ['pytest>=6.0']
 dfanalyzer = [
+    'dftracer-analyzer>=0.0.4'
+]
+dfanalyzer_old = [
     'seaborn>=0.13.2', 
     'bokeh>=2.4.2', 
     'pybind11', 
@@ -124,23 +127,11 @@ target-version = "py38"
 
 [tool.setuptools]
 script-files = [
-  "script/dftracer_compact",
-  "script/dftracer_compact_by_pid",
-  "script/dftracer_merge",
-  "script/dftracer_sanitize",
-  "script/dftracer_anonymize",
-  "script/dftracer_split",
-  "script/dftracer_create_index",
-  "script/dftracer_event_count",
-  "script/dftracer_validate",
-  "script/dftracer_pgzip",
+  "script/git_sparse_clone_interactive",
+  "script/git_sparse_push_interactive",
 ]
-
-[tool.setuptools.package-dir]
-dftracer = "dftracer"
-dfanalyzer = "dfanalyzer"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "dftracer/_version.py"
+write_to = "python/dftracer/_version.py"
 

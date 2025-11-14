@@ -3,7 +3,7 @@ import logging
 import os
 from mpi4py import MPI
 from time import time
-from dftracer.logger import dftracer, dft_fn
+from dftracer.python import dftracer, dft_fn
 
 log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
 

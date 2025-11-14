@@ -7,8 +7,8 @@ set -x
 echo "Running pre.sh on $(hostname) by $USER on $PWD"
 
 # Load the required modules for Python, MPI, and GCC
-echo "Loading modules: Python ($PYTHON_MODULE), MPI ($MPI_MODULE), and GCC ($GCC_MODULE)"
-module load $PYTHON_MODULE $MPI_MODULE $GCC_MODULE
+echo "Loading modules: Python ($PYTHON_MODULE), MPI ($MPI_MODULE), and GCC ($GCC_MODULE) and ROCM ($ROCM_MODULE)"
+module load $PYTHON_MODULE $MPI_MODULE $GCC_MODULE $ROCM_MODULE
 if [ $? -ne 0 ]; then
     echo "Error: Failed to load modules."
     exit 1
@@ -57,6 +57,10 @@ scheduler() {
             echo "Setting SCHEDULER_CMD for hostname containing 'corona'..."
             SCHEDULER_CMD=(flux submit -N $1 --tasks-per-node=$2 -q $QUEUE -t $WALLTIME --exclusive)
             ;;
+        *"tuo"*)
+            echo "Setting SCHEDULER_CMD for hostname containing 'tuo'..."
+            SCHEDULER_CMD=(flux submit -N $1 --ntasks-per-node=$2 -p $QUEUE -t $WALLTIME --exclusive)
+            ;;
         *)
             echo "Unknown hostname: $hostname"
             exit 1
@@ -64,7 +68,15 @@ scheduler() {
     esac
 }
 
-pip install -r .gitlab/scripts/requirements.txt
+# Check if torch isn't installed
+if ! python -c "import torch" &> /dev/null; then
+    echo "Torch is not installed. Installing..."
+    echo "Python source"
+    which python
+    pip install -r .gitlab/scripts/hip_requirements.txt
+fi
+
+export LD_LIBRARY_PATH=$CUSTOM_CI_ENV_DIR/$ENV_NAME/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH
 
 # Disable debugging
 set +x

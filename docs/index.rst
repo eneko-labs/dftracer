@@ -68,6 +68,16 @@ DFTracer: is a library for profiling I/O calls and application functions.
    style-guides
    testing
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Links:
+
+   GitHub <https://github.com/LLNL/dftracer>
+   Python Binding Documentation <https://dftracer.readthedocs.io/projects/python/>
+   Python Binding GitHub <https://github.com/LLNL/pydftracer>
+   Utilities Documentation <https://dftracer.readthedocs.io/projects/utils/>
+   Utilities GitHub <https://github.com/LLNL/dftracer-utils>
+
 ==================
 Indices and tables
 ==================

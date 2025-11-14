@@ -39,7 +39,7 @@ From PyPI (Recommended)
 
 .. code-block:: Bash
 
-    pip install pydftracer
+    pip install dftracer
 
 .. attention::
 
@@ -137,6 +137,7 @@ Build Variables
    ================================ ======  ===========================================================================
    DFTRACER_BUILD_TYPE              STRING  Sets the build type for DFTRACER (default Release). Values are Debug or Release
    DFTRACER_ENABLE_FTRACING         BOOL    Enables function tracing (default OFF).
+   DFTRACER_ENABLE_HIP_TRACING      BOOL    Enables AMD GPU tracing (default OFF).
    DFTRACER_ENABLE_MPI              BOOL    Enables MPI Rank (default ON).
    DFTRACER_DISABLE_HWLOC           BOOL    Disables HWLOC (default ON).
    DFTRACER_PYTHON_EXE              STRING  Sets path to python executable. Only Cmake.

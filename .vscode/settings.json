@@ -104,7 +104,8 @@
         "variant": "cpp",
         "ranges": "cpp",
         "filesystem": "cpp",
-        "*.in": "cpp"
+        "*.in": "cpp",
+        "text_encoding": "cpp"
     },
     "git.ignoreLimitWarning": true
 }

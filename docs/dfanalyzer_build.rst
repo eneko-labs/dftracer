@@ -18,7 +18,7 @@ From pip
 
 .. code-block:: Bash
 
-    pip install pydftracer[dfanalyzer]
+    pip install dftracer[dfanalyzer]
 
 ===============================
 Getting Started with DFAnalyzer

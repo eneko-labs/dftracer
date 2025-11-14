@@ -4,27 +4,174 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
-            "name": "Cmake Debug Target",
+            "name": "service",
             "type": "lldb",
             "request": "launch",
-            "program": "/usr/workspace/haridev/dftracer/build/bin/test_cpp",
+            "program": "${workspaceFolder}/build/bin/dftracer_service",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "env": {}
+        },
+        {
+            "name": "testcpp",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/test_cpp",
             "args": [
-                "/usr/workspace/haridev/dftracer/build/test/data",
+                "${workspaceFolder}/build/test/data",
                 "1"
             ],
             "cwd": "${workspaceFolder}/build",
             "env": {
+                "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:${workspaceFolder}/build/lib64",
+                "DFTRACER_LOG_LEVEL": "INFO",
+                "DFTRACER_ENABLE_AGGREGATION": "ON",
+                "DFTRACER_TRACE_COMPRESSION": "1",
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_cpp_basic_only",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1",
+                "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
+                "DFTRACER_INIT": "FUNCTION",
+            }
+        },
+        {
+            "name": "testcpp-rule",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/test_cpp",
+            "args": [
+                "${workspaceFolder}/build/test/data",
+                "1"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:${workspaceFolder}/build/lib64",
+                "DFTRACER_LOG_LEVEL": "INFO",
+                "DFTRACER_ENABLE_AGGREGATION": "SELECTIVE",
+                "DFTRACER_AGGREGATION_FILE": "${workspaceFolder}/test/rules.yaml",
+                "DFTRACER_TRACE_COMPRESSION": "1",
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_cpp_basic_only",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1",
+                "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
+                "DFTRACER_INIT": "FUNCTION",
+            }
+        },
+        {
+            "name": "testpy",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/workspace/venv/bin/python3",
+            "args": [
+                "${workspaceFolder}/test/py/test.py",
+                "--format=npz",
+                "--data_dir=${workspaceFolder}/build/test/data"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
                 "DFTRACER_LOG_LEVEL": "DEBUG",
-                "DFTRACER_TRACE_COMPRESSION": "0",
+                "DFTRACER_TRACE_COMPRESSION": "1",
                 "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
                 "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
                 "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_cpp_basic_only",
                 "DFTRACER_ENABLE": "1",
                 "DFTRACER_INC_METADATA": "1",
                 "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
-                "DFTRACER_INIT": "PRELOAD",
+                "DFTRACER_INIT": "FUNCTION",
+            }
+        },
+        {
+            "name": "ai",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/venv/bin/python",
+            "args": [
+                "${workspaceFolder}/test/py/ai_logging.py",
+                "--data_dir",
+                "${workspaceFolder}/build/test/data",
+                "--niter",
+                "3",
+                "--num_files",
+                "2"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_TRACE_COMPRESSION": "1",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib:${workspaceFolder}/build/lib64",
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_cpp_basic_only",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1",
+                "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
+                "DFTRACER_INIT": "FUNCTION",
+            }
+        },
+        {
+            "name": "hip",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/venv-tuo/bin/python",
+            "args": [
+                "${workspaceFolder}/test/py/hip_test.py"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_TRACE_COMPRESSION": "0",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/venv-tuo/lib/python3.11/site-packages/torch/lib/:/opt/rocm-6.3.1/lib:/opt/rocm-6.3.1/hip/lib:/opt/rocm-6.3.1/hsa/lib:/opt/cray/pe/lib64:/opt/cray/lib64:/opt/cray/pe/papi/7.2.0.2/lib64:/opt/cray/libfabric/2.1/lib64",
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/hip",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1"
+            }
+        },
+        {
+            "name": "dlio",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/workspace/venv/bin/python3",
+            "args": [
+                "/workspace/venv/lib64/python3.12/site-packages/dlio_benchmark/main.py",
+                "workload=unet3d_a100",
+                "++workload.workflow.generate_data=False",
+                "++workload.dataset.num_files_train=32",
+                "++workload.dataset.record_length_bytes=1048576",
+                "++workload.dataset.data_folder=./unet3d_a100/data",
+                "++workload.checkpoint.checkpoint_folder=./unet3d_a100/checkpoint",
+                "++workload.train.epochs=1"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_TRACE_COMPRESSION": "1",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1",
+            }
+        },
+        {
+            "name": "testc",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/test_c",
+            "args": [
+                "${workspaceFolder}/build/test/data",
+                "1"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_TRACE_COMPRESSION": "1",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_c_basic_only",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1",
+                "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
             }
         },
     ]

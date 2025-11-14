@@ -24,9 +24,9 @@ copyright = u'2018, Lawrence Livermore National Security, LLC'
 author = u'Hariharan Devarajan'
 
 # The short X.Y version
-version = u'0.0'
+version = u'2.0'
 # The full version, including alpha/beta/rc tags
-release = u'1.0.13'
+release = u'2.0.2'
 
 
 # -- General configuration ---------------------------------------------------

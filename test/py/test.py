@@ -7,7 +7,8 @@ from time import sleep
 import h5py
 import numpy as np
 import PIL.Image as im
-from dftracer.logger import dftracer, dft_fn
+from dftracer.python import dftracer, dft_fn
+import resource
 
 cwd = os.getcwd()
 log_file = os.getenv("LOG_FILE", f"{cwd}/test_py-app.pwf")
@@ -18,13 +19,17 @@ parser = argparse.ArgumentParser(
     prog='DFTracer testing',
     description='What the program does',
     epilog='Text at the bottom of help')
-parser.add_argument("--data_dir", default="./data", type=str, help="The directory to save and load data")
-parser.add_argument("--format", default="npz", type=str, help="format of the file")
+parser.add_argument("--data_dir", default="./data", type=str,
+                    help="The directory to save and load data")
+parser.add_argument("--format", default="npz",
+                    type=str, help="format of the file")
 parser.add_argument("--num_files", default=1, type=int, help="Number of files")
-parser.add_argument("--niter", default=1, type=int, help="Number of iterations for the experiment")
-parser.add_argument("--record_size", default=1048576, type=int, help="size of the record to be written to the file")
+parser.add_argument("--niter", default=1, type=int,
+                    help="Number of iterations for the experiment")
+parser.add_argument("--record_size", default=1048576, type=int,
+                    help="size of the record to be written to the file")
 args = parser.parse_args()
-data_dir=args.data_dir
+data_dir = args.data_dir
 os.makedirs(f"{args.data_dir}/{args.format}", exist_ok=True)
 
 
@@ -52,8 +57,12 @@ def posix_calls(val):
     f.close()
     if is_spawn:
         print(f"Calling spawn on {index} with pid {os.getpid()}")
+        resource.setrlimit(resource.RLIMIT_NOFILE, (256, 256))
     else:
         print(f"Not calling spawn on {index} with pid {os.getpid()}")
+
+    log_inst.finalize()
+    os._exit(0)
 
 
 def npz_calls(index):
@@ -141,6 +150,7 @@ def init():
     """This function is called when new processes start."""
     print(f"Initializing process {os.getpid()}")
 
+
 @dft_fn.log
 def with_default_args(step=2):
     for i in dft_fn.iter(range(step)):
@@ -176,9 +186,11 @@ def main():
 
     # testing named parameters
     data = np.ones((args.record_size, 1), dtype=np.uint8)
-    data_gen(num_files=args.num_files, data_dir=args.data_dir, format=args.format, data=data)
+    data_gen(num_files=args.num_files, data_dir=args.data_dir,
+             format=args.format, data=data)
     for n in range(args.niter):
-        read_data(num_files=args.num_files, data_dir=args.data_dir, format=args.format)
+        read_data(num_files=args.num_files,
+                  data_dir=args.data_dir, format=args.format)
 
     with_default_args()
 

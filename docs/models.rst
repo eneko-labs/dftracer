@@ -19,7 +19,7 @@ Installing DFTracer with model tracing
 Install DFTracer with model tracing
 
 .. code-block:: bash
-    pip install pydftracer[dynamo]
+    pip install dftracer[dynamo]
 
 Function decorator style profiling
 ****************************************
@@ -30,7 +30,7 @@ To use the function decorators, they can be initialized in place or globally to 
 .. code-block:: python
 
     dftracer.dynamo import dft_fn as dyn_fn
-    from dftracer.logger import dftracer 
+    from dftracer.python import dftracer 
 
     log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
 
@@ -57,7 +57,7 @@ Model profiling
 
 .. code-block:: python
     from dftracer.dynamo import dft_fn as dyn_fn
-    from dftracer.logger import dftracer
+    from dftracer.python import dftracer
     log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
     dyn = dyn_fn("dynamo")
 

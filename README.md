@@ -2,10 +2,10 @@
 
 [![Build and Test](https://github.com/LLNL/dftracer/actions/workflows/ci.yml/badge.svg)](https://github.com/LLNL/dftracer/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/dftracer/badge/?version=latest)](https://dftracer.readthedocs.io/en/latest/?badge=latest)
-![PyPI - Version](https://img.shields.io/pypi/v/pydftracer?label=PyPI)
-![PyPI - Wheel](https://img.shields.io/pypi/wheel/pydftracer?label=Wheel)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pydftracer?label=Python)
-![PyPI - License](https://img.shields.io/pypi/l/pydftracer?label=License)
+![PyPI - Version](https://img.shields.io/pypi/v/dftracer?label=PyPI)
+![PyPI - Wheel](https://img.shields.io/pypi/wheel/dftracer?label=Wheel)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/dftracer?label=Python)
+![PyPI - License](https://img.shields.io/pypi/l/dftracer?label=License)
 
 ## Overview
 
@@ -41,8 +41,10 @@ This method works for both native Python and Conda environments.
 ### From PyPI
 
 ```bash
-pip install pydftracer
-pip install pydftracer[dfanalyzer]
+pip install dftracer
+pip install dftracer[dfanalyzer]
+# if you want to use old version of DFAnalyzer
+# pip install dftracer[dfanalyzer_old]
 ```
 
 ### From Github
@@ -50,7 +52,9 @@ pip install pydftracer[dfanalyzer]
 ```bash
 DFTRACER_VERSION=develop
 pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}
-pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=pydftracer[dfanalyzer]
+pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=dftracer[dfanalyzer]
+# if you want to use old version of DFAnalyzer
+# pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=dftracer[dfanalyzer_old]
 ```
 
 ### From Source
@@ -69,7 +73,7 @@ For detailed build instructions, click [here](https://dftracer.readthedocs.io/en
 ## Usage
 
 ```python
-from dftracer.logger import dftracer, dft_fn
+from dftracer.python import dftracer, dft_fn
 log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
 dft_fn = dft_fn("COMPUTE")
 

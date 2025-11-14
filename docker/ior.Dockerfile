@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 RUN apt-get update && apt-get install -y python3 python3-pip openmpi-bin openmpi-common libopenmpi-dev
 RUN apt-get install -y git cmake
-RUN pip install pydftracer
+RUN pip install dftracer
 RUN git clone https://github.com/hpc/ior.git /ior
 RUN apt-get install -y automake pkg-config
 RUN cd /ior && ./bootstrap && ./configure && make -j

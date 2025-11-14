@@ -9,8 +9,8 @@ variables:
   CUSTOM_CI_BUILDS_DIR: "/usr/workspace/iopp/gitlab-runner-builds"
   CUSTOM_CI_ENV_DIR: "/usr/workspace/iopp/gitlab-runner-envs"
   # Repository information
-  DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
-  DLIO_BENCHMARK_TAG: feature/optional-dftracer
+  DLIO_BENCHMARK_REPO: https://github.com/rayandrew/dlio_benchmark.git
+  DLIO_BENCHMARK_TAG: feat/ai-logging
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
   # test variable
   ENV_NAME: dlio_env_2
@@ -23,6 +23,22 @@ stages:
 - build
 - generate
 - test
+
+dft_tuo_build:
+  extends: .tuo 
+  stage: build 
+  script: 
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - if [[ "$DEBUG" != "1" ]]; then source .gitlab/scripts/build_dft.sh; else echo "Not building from scratch as running in Debug mode."; fi
+
+dft_tuo_test: 
+  extends: .tuo 
+  stage: test 
+  script: 
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - bash .gitlab/scripts/run_dft_hip_test.sh
 
 dlio_corona_build:
   extends: .corona

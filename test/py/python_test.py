@@ -5,7 +5,7 @@ import time
 import numpy as np
 from PIL import Image
 import h5py
-from dftracer.logger import dftracer, dft_fn as Profile
+from dftracer.python import dftracer, dft_fn as Profile
 parser = argparse.ArgumentParser(
     prog='DFTracer testing',
     description='What the program does',

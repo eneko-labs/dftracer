@@ -4,7 +4,7 @@ from time import sleep
 
 import numpy as np
 
-from dftracer.logger import dftracer, ai
+from dftracer.python import dftracer, ai
 
 
 class IOHandler:

@@ -54,7 +54,7 @@ Now, we need to modify code a bit to annotate computation and I/O using :code:`d
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn as Profile
+    from dftracer.python import dft_fn as Profile
 
     dlp_computation = Profile("computation")
     #                               ^

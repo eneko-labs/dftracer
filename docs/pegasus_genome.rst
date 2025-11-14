@@ -162,7 +162,7 @@ Step 4: Annotate 1000-Genome
 
 .. code-block:: python
 
-    from dftracer.logger import dftracer, dft_fn
+    from dftracer.python import dftracer, dft_fn
     log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
 
     CAT = "PY_APP"

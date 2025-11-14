@@ -24,3 +24,23 @@
     SMALL_QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
     MAX_NODES_SMALL_QUEUE: 8
     SYSTEM_NAME: corona
+
+.tuo:
+  extends: .lc 
+  tags: 
+    - shell 
+    - tuolumne
+  variables: 
+    PYTHON_MODULE: cray-python/3.11.7
+    MPI_MODULE: cray-mpich/8.1.25 # OpenMPI is a popular open-source MPI implementation
+    GCC_MODULE: gcc/12.2.0
+    ROCM_MODULE: rocm/6.3.1
+    DATA_PATH: "/p/lustre5/iopp/gitlab-runner-data/"
+    LOG_STORE_DIR: "/p/lustre5/iopp/dftracer-traces-lfs" # 'iopp' refers to a specific directory structure
+    CUSTOM_CI_OUTPUT_DIR: "/p/lustre5/iopp/gitlab-runner-outputs"
+    SMALL_QUEUE_WALLTIME: 60
+    LARGE_QUEUE: pbatch # 'pbatch' is a queue name for batch jobs
+    SMALL_QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
+    MAX_NODES_SMALL_QUEUE: 8
+    SYSTEM_NAME: tuolumne
+

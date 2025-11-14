@@ -64,5 +64,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-python -c "import dftracer; import dftracer.logger; print(dftracer.__version__);"
+python -c "import dftracer; import dftracer.python; print(dftracer.__version__);"
 export PATH=$site/dftracer/bin:$PATH

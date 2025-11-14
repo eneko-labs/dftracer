@@ -80,7 +80,7 @@ def execute_dlio_benchmark_query(workload, args, key, datatype=str):
         logging.debug(f"Converted output to {datatype.__name__}: {result}")
         return result
     except ValueError as e:
-        logging.error(f"Failed to convert output to {datatype.__name__}: {e}")
+        logging.error(f"Failed to convert output {workload, args, key} to {datatype.__name__}: {e}")
         raise ValueError(f"Failed to convert output to {datatype}: {e}")
 
 def get_queue_time_for_nodes_minutes(nodes):
@@ -122,7 +122,6 @@ def generate_gitlab_ci_yaml(config_files):
             "create_directory",
             "generate_data",
             "train",
-            "compress_output",
             "move",
             "process_trace",
             "cleanup",
@@ -402,7 +401,6 @@ def generate_gitlab_ci_yaml(config_files):
                 [
                     "generate_data",
                     "train",
-                    "compress_output",
                     "move",
                     "process_trace",
                     "cleanup",
@@ -430,18 +428,6 @@ def generate_gitlab_ci_yaml(config_files):
                         },
                     }
 
-                elif stage == "compress_output":
-                    ci_config[f"{base_job_name}_compress_output"] = {
-                        "stage": "compress_output",
-                        "extends": f".{system_name}",
-                        "script": [
-                            "source .gitlab/scripts/variables.sh",
-                            "source .gitlab/scripts/pre.sh",
-                            "which python; which dftracer_pgzip;",
-                            f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_compress dftracer_pgzip -d {output}/train",
-                        ],
-                        "needs": [f"{base_job_name}_train"],
-                    }
                 elif stage == "move":
                     ci_config[f"{base_job_name}_move"] = {
                         "stage": "move",
@@ -456,7 +442,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"tar -czf RAW.tar.gz RAW || true",
                         ],
-                        "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
+                        "needs": [f"create_directory_common", f"{base_job_name}_train"],
                     }
                 elif stage == "process_trace":
                     ci_config[f"{base_job_name}_process_trace"] = {
@@ -469,7 +455,7 @@ def generate_gitlab_ci_yaml(config_files):
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_event_count;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id};",
-                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload};",
+                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload} --verify;",
                             f"tar -czf COMPACT.tar.gz COMPACT || true;",
                             f"event_count=$(dftracer_event_count -d $PWD/COMPACT);",
                             f"size_bytes=$(du -b $PWD/COMPACT | cut -f1);",

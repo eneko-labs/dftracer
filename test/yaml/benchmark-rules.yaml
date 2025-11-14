@@ -1,0 +1,7 @@
+inclusion:
+  - cat == 'POSIX'
+  - name LIKE '*stat*'
+exclusion:
+  - name LIKE '*read*'
+  - name LIKE '*write*'
+  - dur > 10000

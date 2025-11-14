@@ -80,6 +80,11 @@ ENV Variables supported
    DFTRACER_WRITE_BUFFER_SIZE       INT     Setup the buffering size for write optimization (default 0). Note: Disabled as
                                             this won't work for AI workloads which uses ``fork`` and ``spawn`` without a clear ``exit``.
                                             Also, it does not work for workloads which uses ``exec`` and rewrite process buffer state.
+   DFTRACER_TRACE_INTERVAL_MS       INT     Setup the interval for trace collection (default 1000).
+   DFTRACER_ENABLE_AGGREGATION      INT     set aggregation type (default 0).
+   DFTRACER_AGGREGATION_TYPE        STRING  set aggregation type FULL or SELECTIVE (default: FULL).
+                                            If SELECTIVE need to set DFTRACER_AGGREGATION_FILE else all are aggregated.
+   DFTRACER_AGGREGATION_FILE        STRING  PATH to the aggregation rules file (default: empty).
    ================================ ======  ===========================================================================
 
 ----------------------------------------
@@ -278,7 +283,7 @@ In C application, include ``dftracer/dftracer.h``.
 
 .. code-block:: python
 
-    from dftracer.logger import dftracer
+    from dftracer.python import dftracer
 
 Initialization of DFTracer
 ****************************************
@@ -315,7 +320,7 @@ In general, the name of the event can be automatically loaded by the function du
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     dft_fn = dft_fn("COMPUTE")
 
     @dft_fn.log
@@ -326,7 +331,7 @@ For logging ``__init__`` function within a class, applications can use ``log_ini
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     dft_fn = dft_fn("COMPUTE")
 
     class Test:
@@ -347,7 +352,7 @@ For logging every block within a loop, we have an ``dft_fn.iter`` which takes a 
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     dft_fn = dft_fn("COMPUTE")
 
     for batch in dft_fn.iter(loader.next()):
@@ -360,7 +365,7 @@ We can also profile a block of code using Python's context managers using ``dft_
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     with dft_fn(cat="block", name="step") as dft:
         sleep(1)
         dft.update(step=1)
@@ -373,7 +378,7 @@ In general this should be only used when other cases cannot be applied.
 
 .. code-block:: python
 
-    from dftracer.logger import dftracer
+    from dftracer.python import dftracer
     dft_logger = dftracer.initialize_log(logfile, data_dir, process_id)
     start = dft_logger.get_time()
     sleep(1)

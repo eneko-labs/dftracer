@@ -2,8 +2,8 @@
 // Created by haridev on 10/21/23.
 //
 
-#include <dftracer/core/constants.h>
-#include <dftracer/core/logging.h>
+#include <dftracer/core/common/constants.h>
+#include <dftracer/core/common/logging.h>
 #include <fcntl.h>
 #include <math.h>
 #include <mpi.h>

@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from setuptools import Extension, find_namespace_packages, setup
+from setuptools import Extension, find_namespace_packages, find_packages, setup
 from setuptools.command.build_ext import build_ext
 from setuptools_scm import ScmVersion
 
@@ -20,8 +20,10 @@ PLAT_TO_CMAKE = {
 
 def myversion_func(version: ScmVersion) -> str:
     from setuptools_scm.version import only_version
-
-    return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
+    if version.distance > 0:
+        return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
+    else:
+        return version.format_next_version(only_version, fmt="{tag}")
 
 
 # A CMakeExtension needs a sourcedir instead of a file list.
@@ -83,6 +85,9 @@ class CMakeBuild(build_ext):
         cmake_args += [f"-DCMAKE_BUILD_TYPE={build_type}"]
         enable_ftracing = os.environ.get("DFTRACER_ENABLE_FTRACING", "OFF")
         cmake_args += [f"-DDFTRACER_ENABLE_FTRACING={enable_ftracing}"]
+        enable_hip_tracing = os.environ.get(
+            "DFTRACER_ENABLE_HIP_TRACING", "OFF")
+        cmake_args += [f"-DDFTRACER_ENABLE_HIP_TRACING={enable_hip_tracing}"]
         enable_mpi = os.environ.get("DFTRACER_ENABLE_MPI", "OFF")
         cmake_args += [f"-DDFTRACER_ENABLE_MPI={enable_mpi}"]
         disable_hwloc = os.environ.get("DFTRACER_DISABLE_HWLOC", "ON")
@@ -103,14 +108,19 @@ class CMakeBuild(build_ext):
         enable_dlio_tests = os.environ.get(
             "DFTRACER_ENABLE_DLIO_BENCHMARK_TESTS", "OFF"
         )
-        cmake_args += [f"-DDFTRACER_ENABLE_DLIO_BENCHMARK_TESTS={enable_dlio_tests}"]
-        enable_dlio_tests = os.environ.get("DFTRACER_ENABLE_PAPER_TESTS", "OFF")
+        cmake_args += [
+            f"-DDFTRACER_ENABLE_DLIO_BENCHMARK_TESTS={enable_dlio_tests}"]
+        enable_dlio_tests = os.environ.get(
+            "DFTRACER_ENABLE_PAPER_TESTS", "OFF")
         cmake_args += [f"-DDFTRACER_ENABLE_PAPER_TESTS={enable_dlio_tests}"]
 
-        test_ld_library_path = os.environ.get("DFTRACER_TEST_LD_LIBRARY_PATH", "")
-        cmake_args += [f"-DDFTRACER_TEST_LD_LIBRARY_PATH={test_ld_library_path}"]
+        test_ld_library_path = os.environ.get(
+            "DFTRACER_TEST_LD_LIBRARY_PATH", "")
+        cmake_args += [
+            f"-DDFTRACER_TEST_LD_LIBRARY_PATH={test_ld_library_path}"]
 
-        writer_type = os.environ.get("DFTRACER_WRITER_TYPE", "PERFETTO_CHROME_FILE")
+        writer_type = os.environ.get(
+            "DFTRACER_WRITER_TYPE", "PERFETTO_CHROME_FILE")
         cmake_args += [f"-DDFTRACER_WRITER_TYPE={writer_type}"]
 
         # CMake lets you override the generator - we need to check this.
@@ -128,11 +138,10 @@ class CMakeBuild(build_ext):
         build_args = []
         # Adding CMake arguments set as environment variable
         # (needed e.g. to build for ARM OSx on conda-forge)
-        if "CMAKE_ARGS" in os.environ:
-            cmake_args += [item for item in os.environ["CMAKE_ARGS"].split(" ") if item]
 
         # In this example, we pass in the version to C++. You might not need to.
-        cmake_args += [f"-DEXAMPLE_VERSION_INFO={self.distribution.get_version()}"]
+        cmake_args += [
+            f"-DEXAMPLE_VERSION_INFO={self.distribution.get_version()}"]
 
         # Set CMAKE_BUILD_PARALLEL_LEVEL to control the parallel build level
         # across all generators.
@@ -166,6 +175,10 @@ class CMakeBuild(build_ext):
             f"-Dpybind11_DIR={py_cmake_dir}",
         ]
 
+        if "DFTRACER_CMAKE_ARGS" in os.environ:
+            cmake_args += [
+                item for item in os.environ["DFTRACER_CMAKE_ARGS"].split(";") if item]
+
         subprocess.run(
             ["cmake", ext.sourcedir, *cmake_args], cwd=build_temp, check=True
         )
@@ -178,16 +191,14 @@ class CMakeBuild(build_ext):
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
-    name="pydftracer",
+    name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
-    packages=(
-        find_namespace_packages(
-            include=["dftracer", "dftracer.dbg", "dftracer.logger", "dfanalyzer"]
-        )
-    ),
+    packages=find_packages(where='python') +
+    find_packages(where='dfanalyzer_old'),
+    package_dir={'': 'python', 'dfanalyzer_old': 'dfanalyzer_old'},
     ext_modules=[
-        CMakeExtension("dftracer.pydftracer"),
-        CMakeExtension("dftracer.pydftracer_dbg"),
+        CMakeExtension("dftracer.dftracer"),
+        CMakeExtension("dftracer.dftracer_dbg"),
     ],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,

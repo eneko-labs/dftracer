@@ -7,9 +7,6 @@ Debugging
 Preload Mode
 ------------
 
-.. #TODO
-.. Application Level Example:
-.. **************************
 
 
 To enable debugging with the LD_PRELOAD mode, LD_PRELOAD the executable with libdftracer_preload_dbg.so at
@@ -49,11 +46,11 @@ Python:
 .. code-block:: python
    :linenos:
 
-    from dftracer.dbg.logger import dftracer, dft_fn
+    from dftracer.python.dbg import dftracer, dft_fn
     # Remaining code as it is
 
 
-Import the logger from dftracer.dbg.logger instead of dftracer.logger. No other
+Import the logger from dftracer.python.dbg instead of dftracer.python. No other
 changes in the code are required to enable debug logging
 
 .. code-block:: bash

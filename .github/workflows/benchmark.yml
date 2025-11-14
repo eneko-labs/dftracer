@@ -1,0 +1,224 @@
+name: Benchmark PR with IOR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - develop
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    env:
+      IOR_REPO: "https://github.com/hpc/ior.git"
+      IOR_VERSION: "4.0.0"
+      PYTHON_VERSION: "3.10"
+    outputs:
+      branch: ${{ steps.pr_info.outputs.branch }}
+      url: ${{ steps.pr_info.outputs.url }}
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+
+      - name: Get PR branch and repo URL
+        id: pr_info
+        run: |
+          echo "==> Get PR branch and repo URL"
+          branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          if [ -z "$branch" ]; then
+            branch="develop"
+          fi
+          url="${{ github.event.pull_request.head.repo.clone_url }}"
+          if [ -z "$url" ]; then
+            url="https://github.com/LLNL/dftracer.git"
+          fi
+          echo "branch=$branch" >> $GITHUB_OUTPUT
+          echo "url=$url" >> $GITHUB_OUTPUT
+          echo "==> Check for changes under src/ or test/"
+
+          # Gather changed filenames via GitHub API
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            pr_number=$(jq -r .pull_request.number < "$GITHUB_EVENT_PATH")
+            files=$(curl -sS -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/files" | jq -r '.[].filename')
+          else
+            before=$(jq -r .before < "$GITHUB_EVENT_PATH")
+            after=$(jq -r .after < "$GITHUB_EVENT_PATH")
+            files=$(curl -sS -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/${before}...${after}" | jq -r '.files[].filename')
+          fi
+
+          echo "Changed files:"
+          echo "$files"
+
+          # If no file under src/ or test/ was changed, cancel the run
+          if ! echo "$files" | grep -Eq '^(src/|test/)'; then
+            # Indicate to later steps that benchmark should be skipped
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Relevant changes detected, continuing."
+
+      - name: Set up Python
+        if: steps.pr_info.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create virtual environment
+        if: steps.pr_info.outputs.skip != 'true'
+        run: |
+          echo "==> Create virtual environment"
+          python -m venv venv
+
+      - name: Install dftracer from PR branch
+        if: steps.pr_info.outputs.skip != 'true'
+        run: |
+          echo "==> Install dftracer from PR branch"
+          source venv/bin/activate
+          pip install --upgrade pip
+          git clone -b ${{ steps.pr_info.outputs.branch }} ${{ steps.pr_info.outputs.url }} dftracer-src
+          cd dftracer-src
+          pip install .
+
+      - name: Install IOR
+        if: steps.pr_info.outputs.skip != 'true'
+        run: |
+          echo "==> Install IOR"
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi-dev
+          git clone $IOR_REPO
+          cd ior
+          git checkout tags/$IOR_VERSION -b $IOR_VERSION
+          ./bootstrap
+          ./configure
+          make -j
+          cd ..
+
+      - name: Find libdftracer_preload.so
+        if: steps.pr_info.outputs.skip != 'true'
+        id: dftracer_lib
+        run: |
+          echo "==> Find libdftracer_preload.so"
+          source venv/bin/activate
+          LIB_PATH=$(find venv -name 'libdftracer_preload.so' | head -n 1)
+          echo "lib_path=$LIB_PATH" >> $GITHUB_OUTPUT
+
+      - name: Run IOR with dftracer
+        if: steps.pr_info.outputs.skip != 'true'
+        run: |
+          echo "==> Run IOR with dftracer"
+          source venv/bin/activate
+          for mode in trace none profile selective; do
+            for ts in 4 1024; do
+              if [[ "$mode" == "trace" || "$mode" == "profile" ]]; then
+                export LD_PRELOAD=${{ steps.dftracer_lib.outputs.lib_path }}
+              else
+                unset LD_PRELOAD
+              fi
+              if [[ "$mode" == "profile" ]]; then
+                export DFTRACER_ENABLE_AGGREGATION=ON
+              else
+                unset DFTRACER_ENABLE_AGGREGATION
+              fi
+              if [[ "$mode" == "selective" ]]; then
+                export DFTRACER_ENABLE_AGGREGATION=SELECTIVE
+                export DFTRACER_AGGREGATION_FILE=dftracer-src/test/benchmark-rules.yaml
+              else
+                unset DFTRACER_ENABLE_AGGREGATION
+              fi
+              if [[ "$mode" == "selective" ]]; then
+                export DFTRACER_ENABLE_AGGREGATION=1
+                export DFTRACER_AGGREGATION_TYPE=SELECTIVE
+                export DFTRACER_AGGREGATION_FILE=dftracer-src/test/yaml/benchmark-rules.yaml
+              else
+                unset DFTRACER_ENABLE_AGGREGATION
+                unset DFTRACER_AGGREGATION_TYPE
+                unset DFTRACER_AGGREGATION_FILE
+              fi
+              cmd=(./ior/src/ior -w -r -i 5 -t ${ts}k -b $((ts * 16))k -o testfile.dftracer -O summaryFormat=CSV -O summaryFile=case-${mode}-${ts}.csv)
+              echo "${cmd[@]}"
+              "${cmd[@]}"
+              unset LD_PRELOAD
+              unset DFTRACER_ENABLE_AGGREGATION
+              unset DFTRACER_AGGREGATION_TYPE
+              unset DFTRACER_AGGREGATION_FILE
+              awk 'BEGIN{FS=OFS=","} NR==1{$(NF+1)="mode"} NR>1{$(NF+1)="'$mode'"} 1' case-${mode}-${ts}.csv > tmp && mv tmp case-${mode}-${ts}.csv
+            done
+          done
+          echo "==> Combine all case-*.csv files"
+          head -n 1 case-trace-4.csv > cases.csv
+          for f in case-*.csv; do
+            tail -n +2 "$f" >> cases.csv
+          done
+          echo "==> Show contents of both CSVs"
+          echo "==> cases.csv:"
+          # touch cases.csv
+          cat cases.csv
+      - name: Parse and compare results
+        if: steps.pr_info.outputs.skip != 'true'
+        run: |
+          echo "==> Parse and compare results"
+          source venv/bin/activate
+          pip install pandas numpy          
+          python dftracer-src/test/analysis_ior.py > overhead.csv
+          echo "==> All values in overhead.csv:"
+          # touch overhead.csv
+          cat overhead.csv
+      - name: Upload benchmark results
+        if: steps.pr_info.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            cases.csv
+            overhead.csv
+
+  store-results:
+    needs: benchmark
+    if: ${{ needs.benchmark.outputs.skip == 'true' && (needs.benchmark.outputs.branch != 'develop' || needs.benchmark.outputs.url != 'https://github.com/LLNL/dftracer.git') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grants write access to the repository's contents
+    steps:
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Clone PR branch
+        run: |
+          git clone ${{ needs.benchmark.outputs.url }} repo
+          cd repo
+          git checkout ${{ needs.benchmark.outputs.branch }}
+
+      - name: Copy results to branch
+        run: |
+          mkdir -p repo/results
+          cp cases.csv repo/results/
+          cp overhead.csv repo/results/
+
+      - name: Commit and push results      
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd repo
+          git add results/cases.csv results/overhead.csv
+          git commit -m "Add benchmark results"
+          git remote add ci-url https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
+          if git remote get-url ci-url; then
+          echo "Remote ci-url set successfully."
+          git push ci-url ${{ needs.benchmark.outputs.branch }}
+          else
+          echo "Failed to set remote ci-url."
+          exit 1
+          fi

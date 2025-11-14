@@ -1,5 +1,5 @@
-from dftracer.dynamo import dft_fn
-from dftracer.logger import dftracer
+from dftracer.python.dynamo import dft_fn
+from dftracer.python import dftracer
 import torch
 import os
 

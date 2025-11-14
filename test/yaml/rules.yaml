@@ -1,0 +1,6 @@
+inclusion:
+  - cat IN {'POSIX', 'STDIO'}
+  - name == 'close' OR name == 'fclose'
+  - name LIKE '*stat*' AND app LIKE 'test*'
+exclusion:
+  - NOT dur < 1000
