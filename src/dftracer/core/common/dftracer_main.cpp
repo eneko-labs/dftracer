@@ -249,21 +249,13 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
                    exec_name, hostname, this->process_id);
           char *log_file_hash = logger->get_hash(log_filename_str);
           DFTRACER_LOG_DEBUG("Conf has log file %s", conf->log_file.c_str());
-          if (conf->writer_type == WriterType::PERFETTO_CHROME_ZMQ ||
-              conf->writer_type == WriterType::PERFETTO_PROTO_ZMQ) {
-            this->log_file = std::string(conf->log_file);
-          } else if (conf->writer_type == WriterType::PERFETTO_PROTO_FILE) {
-            this->log_file = std::string(conf->log_file) + "-" + exec_name +
-                             "-" + std::to_string(this->process_id) + "-" +
-                             log_file_suffix + ".ptrace";
-          } else {
-            this->log_file = std::string(conf->log_file) + "-" + exec_name +
-                             "-" + std::to_string(this->process_id) + "-" +
-                             log_file_suffix + ".pfw";
-            if (conf->compression) {
-              this->log_file += ".gz";
-            }
+          std::string extension = ".pfw";
+          if (conf->compression) {
+            extension += ".gz";
           }
+          this->log_file = std::string(conf->log_file) + "-" +
+                           std::string(log_file_hash) + "-" + log_file_suffix +
+                           extension;
         } else {  // GCOV_EXCL_START
           DFTRACER_LOG_ERROR(DFTRACER_UNDEFINED_LOG_FILE_MSG, "");
           throw std::runtime_error(DFTRACER_UNDEFINED_LOG_FILE_CODE);

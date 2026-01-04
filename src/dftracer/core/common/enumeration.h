@@ -6,11 +6,12 @@
 #define DFTRACER_ENUMERATION_H
 #include <cpp-logger/logger.h>
 
+#include <cstdint>
+#include <string>
+
 enum WriterType : uint8_t {
-  PERFETTO_CHROME_FILE = 0,
-  PERFETTO_CHROME_ZMQ = 1,
-  PERFETTO_PROTO_FILE = 2,
-  PERFETTO_PROTO_ZMQ = 3,
+  WRITER_TYPE_STDIO = 0,
+  WRITER_TYPE_MOFKA = 1,
 };
 enum ProfilerStage : uint8_t {
   PROFILER_INIT = 0,
@@ -37,7 +38,7 @@ enum AggregationType : uint8_t {
 };
 enum class RuleOp { AND, OR, NOT, EQ, NEQ, GT, LT, GTE, LTE, IN, LIKE };
 
-inline MetadataType convert(const int &s) {
+inline MetadataType convert(const int& s) {
   if (s == 0) {
     return MetadataType::MT_KEY;
   } else if (s == 1) {
@@ -49,7 +50,7 @@ inline MetadataType convert(const int &s) {
   }
 }
 
-inline void convert(const int &s, MetadataType &type) {
+inline void convert(const int& s, MetadataType& type) {
   if (s == 0) {
     type = MetadataType::MT_KEY;
   } else if (s == 1) {
@@ -61,7 +62,7 @@ inline void convert(const int &s, MetadataType &type) {
   }
 }
 
-inline void convert(const std::string &s, ProfileInitType &type) {
+inline void convert(const std::string& s, ProfileInitType& type) {
   if (s == "PRELOAD") {
     type = ProfileInitType::PROFILER_INIT_LD_PRELOAD;
   } else if (s == "FUNCTION") {
@@ -70,7 +71,7 @@ inline void convert(const std::string &s, ProfileInitType &type) {
     type = ProfileInitType::PROFILER_INIT_NONE;
   }
 }
-inline void convert(const std::string &s, cpplogger::LoggerType &type) {
+inline void convert(const std::string& s, cpplogger::LoggerType& type) {
   if (s == "DEBUG") {
     type = cpplogger::LoggerType::LOG_DEBUG;
   } else if (s == "INFO") {
@@ -81,7 +82,7 @@ inline void convert(const std::string &s, cpplogger::LoggerType &type) {
     type = cpplogger::LoggerType::LOG_ERROR;
   }
 }
-inline void convert(const std::string &s, AggregationType &type) {
+inline void convert(const std::string& s, AggregationType& type) {
   if (s == "FULL") {
     type = AggregationType::AGGREGATION_TYPE_FULL;
   } else if (s == "SELECTIVE") {
@@ -90,7 +91,7 @@ inline void convert(const std::string &s, AggregationType &type) {
     type = AggregationType::AGGREGATION_TYPE_FULL;
   }
 }
-inline std::string to_string(const AggregationType &type) {
+inline std::string to_string(const AggregationType& type) {
   switch (type) {
     case AggregationType::AGGREGATION_TYPE_FULL:
       return "FULL";
@@ -101,15 +102,11 @@ inline std::string to_string(const AggregationType &type) {
   }
 }
 
-inline void convert(const std::string &s, WriterType &type) {
-  if (s == "PERFETTO_CHROME_ZMQ") {
-    type = WriterType::PERFETTO_CHROME_ZMQ;
-  } else if (s == "PERFETTO_PROTO_FILE") {
-    type = WriterType::PERFETTO_PROTO_FILE;
-  } else if (s == "PERFETTO_PROTO_ZMQ") {
-    type = WriterType::PERFETTO_PROTO_ZMQ;
+inline void convert(const std::string& s, WriterType& type) {
+  if (s == "MOFKA") {
+    type = WriterType::WRITER_TYPE_MOFKA;
   } else {
-    type = WriterType::PERFETTO_CHROME_FILE;  // Default to CHROME FILE
+    type = WriterType::WRITER_TYPE_STDIO;
   }
 }
 

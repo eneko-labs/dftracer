@@ -119,8 +119,7 @@ class CMakeBuild(build_ext):
         cmake_args += [
             f"-DDFTRACER_TEST_LD_LIBRARY_PATH={test_ld_library_path}"]
 
-        writer_type = os.environ.get(
-            "DFTRACER_WRITER_TYPE", "PERFETTO_CHROME_FILE")
+        writer_type = os.environ.get("DFTRACER_WRITER_TYPE", "STDIO")
         cmake_args += [f"-DDFTRACER_WRITER_TYPE={writer_type}"]
 
         # CMake lets you override the generator - we need to check this.

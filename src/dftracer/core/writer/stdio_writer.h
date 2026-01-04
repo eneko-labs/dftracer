@@ -2,15 +2,17 @@
 #include <dftracer/core/common/logging.h>
 #include <dftracer/core/common/singleton.h>
 #include <dftracer/core/utils/configuration_manager.h>
+#include <dftracer/core/writer/writer_interface.h>
 
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
+
 namespace dftracer {
-class STDIOWriter {
+class STDIOWriter : public WriterInterface {
  public:
   STDIOWriter() : max_size_(0), fh_(nullptr) {}
-  void initialize(const char* filename) {
+  void initialize(const char* filename) override {
     this->filename = filename;
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
@@ -28,7 +30,7 @@ class STDIOWriter {
   void initialize() {}
 
   ~STDIOWriter() {}
-  void finalize(int index) {
+  void finalize(int index) override {
     if (fh_ != nullptr) {
       DFTRACER_LOG_INFO("Finalizing STDIOWriter", "");
       fflush(fh_);
@@ -51,7 +53,7 @@ class STDIOWriter {
   }
 
   // Write data to buffer, flush if necessary
-  size_t write(const char* data, size_t len, bool force = false) {
+  size_t write(const char* data, size_t len, bool force = false) override {
     if (fh_ != nullptr && (force || len >= max_size_)) {
       // Use stdio file locking (flockfile/funlockfile) for FILE*
       // needed for fork and spawn cases to maintain consistency

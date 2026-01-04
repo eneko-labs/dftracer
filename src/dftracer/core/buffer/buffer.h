@@ -1,21 +1,21 @@
 #ifndef DFTRACER_BUFFER_H
 #define DFTRACER_BUFFER_H
-#include <dftracer/core/common/logging.h>
-#include <dftracer/core/compression/zlib_compression.h>
-//
 #include <dftracer/core/aggregator/aggregator.h>
 #include <dftracer/core/common/cpp_typedefs.h>
 #include <dftracer/core/common/datastructure.h>
 #include <dftracer/core/common/enumeration.h>
+#include <dftracer/core/common/logging.h>
 #include <dftracer/core/common/typedef.h>
+#include <dftracer/core/compression/zlib_compression.h>
 #include <dftracer/core/serialization/json_line.h>
 #include <dftracer/core/utils/configuration_manager.h>
-#include <dftracer/core/writer/stdio_writer.h>
+#include <dftracer/core/writer/writer_interface.h>
 
 #include <any>
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
+
 namespace dftracer {
 class BufferManager {
  public:
@@ -60,7 +60,7 @@ class BufferManager {
   std::shared_ptr<dftracer::ConfigurationManager> config;
   std::shared_ptr<dftracer::JsonLines> serializer;
   std::shared_ptr<dftracer::ZlibCompression> compressor;
-  std::shared_ptr<dftracer::STDIOWriter> writer;
+  std::shared_ptr<dftracer::WriterInterface> writer;
   std::shared_ptr<dftracer::Aggregator> aggregator;
 };
 }  // namespace dftracer

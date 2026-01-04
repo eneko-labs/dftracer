@@ -30,7 +30,7 @@ void foo() {
   DFTRACER_C_FUNCTION_END();
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   int init = 0;
   if (argc > 2) {
     if (strcmp(argv[2], "1") == 0) {
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   char filename[1024];
   sprintf(filename, "%s/demofile_c.txt", argv[1]);
   foo();
-  FILE *fh = fopen(filename, "w+");
+  FILE* fh = fopen(filename, "w+");
   fwrite("hello", sizeof("hello"), 1, fh);
   int child_pid = fork();  // fork a duplicate process
   int pid = getpid();
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 
   if (child_ppid == pid) {
     // if the current process is a child of the main process
-    char *arr[] = {"ls", "-l", NULL};
+    char* arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
     if (init) {
       DFTRACER_C_FINI();
