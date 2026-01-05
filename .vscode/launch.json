@@ -154,7 +154,7 @@
             }
         },
         {
-            "name": "testc",
+            "name": "testc-stdio",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/test_c",
@@ -164,15 +164,46 @@
             ],
             "cwd": "${workspaceFolder}/build",
             "env": {
-                "DFTRACER_LOG_LEVEL": "DEBUG",
-                "DFTRACER_TRACE_COMPRESSION": "1",
-                "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
                 "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
-                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_c_basic_only",
                 "DFTRACER_ENABLE": "1",
                 "DFTRACER_INC_METADATA": "1",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_c_basic_only",
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_TRACE_COMPRESSION": "0",
+                "DFTRACER_WRITER_TYPE": "STDIO",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
                 "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
-            }
+            },
+            "initCommands": [
+                "settings set target.process.follow-fork-mode child"
+            ]
+        },
+        {
+            "name": "testc-mofka",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/test_c",
+            "args": [
+                "${workspaceFolder}/build/test/data",
+                "1"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_c_basic_only",
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_MOFKA_GROUP_FILE": "${workspaceFolder}/build/test/mofka.group.json",
+                "DFTRACER_MOFKA_TOPIC_NAME": "test_c",
+                "DFTRACER_TRACE_COMPRESSION": "0",
+                "DFTRACER_WRITER_TYPE": "MOFKA",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
+                "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
+            },
+            "initCommands": [
+                "settings set target.process.follow-fork-mode child"
+            ]
         },
     ]
 }
