@@ -17,7 +17,7 @@ class MofkaWriter : public WriterInterface {
   std::unique_ptr<diaspora::Driver> driver_;
   std::unique_ptr<diaspora::Producer> producer_;
   std::unique_ptr<diaspora::TopicHandle> topic_;
-  pid_t init_pid_;
+  pid_t init_pid_ = 0;
 
  public:
   MofkaWriter();
