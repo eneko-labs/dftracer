@@ -143,9 +143,57 @@ Build Variables
    DFTRACER_PYTHON_EXE              STRING  Sets path to python executable. Only Cmake.
    DFTRACER_PYTHON_SITE             STRING  Sets path to python site-packages. Only Cmake.
    DFTRACER_BUILD_PYTHON_BINDINGS   STRING  Enable python bindings for DFTracer. Only Cmake.
+   DFTRACER_WRITER_TYPE             STRING  Sets the writer backend (default STDIO). Values are STDIO, MOFKA, or CHRONOLOG. Only Cmake.
    ================================ ======  ===========================================================================
 
 These build variables can be set with cmake as ``-DDISABLE_HWLOC=OFF`` or as environment variables ``export DFTRACER_DISABLE_HWLOC=OFF``
+
+-------------------
+Writer Backends
+-------------------
+
+DFTracer supports multiple writer backends that can be selected at compile time using the ``DFTRACER_WRITER_TYPE`` CMake option:
+
+**STDIO Writer (default)**
+  Writes trace data to local files. This is the default backend and requires no additional dependencies.
+
+**MOFKA Writer**
+  Writes trace data to Mofka event streaming service. Requires the Mofka library to be installed.
+  
+  Runtime configuration (via environment variables):
+  
+  - ``DFTRACER_MOFKA_GROUP_FILE``: Path to the Mofka group file (required)
+  - ``DFTRACER_MOFKA_TOPIC_NAME``: Name of the Mofka topic (default: "dftracer_events")
+
+**CHRONOLOG Writer**
+  Writes trace data to ChronoLog distributed event logging system. Requires the ChronoLog client library to be installed.
+  
+  Runtime configuration (via environment variables):
+  
+  - ``DFTRACER_CHRONOLOG_PROTOCOL``: Transport protocol (default: "ofi+sockets")
+  - ``DFTRACER_CHRONOLOG_HOST``: ChronoVisor host address (default: "127.0.0.1")
+  - ``DFTRACER_CHRONOLOG_PORT``: ChronoVisor port (default: 5555)
+  - ``DFTRACER_CHRONOLOG_PROVIDER_ID``: Provider ID (default: 55)
+  - ``DFTRACER_CHRONOLOG_CHRONICLE_NAME``: Chronicle name (default: "dftracer_chronicle")
+  - ``DFTRACER_CHRONOLOG_STORY_NAME``: Story name (default: "dftracer_story")
+
+To build with a specific writer backend:
+
+.. code-block:: Bash
+
+    # Build with STDIO writer (default)
+    cmake . -B build -DCMAKE_INSTALL_PREFIX=<install-path>
+    
+    # Build with MOFKA writer
+    cmake . -B build -DCMAKE_INSTALL_PREFIX=<install-path> -DDFTRACER_WRITER_TYPE=MOFKA
+    
+    # Build with CHRONOLOG writer
+    cmake . -B build -DCMAKE_INSTALL_PREFIX=<install-path> -DDFTRACER_WRITER_TYPE=CHRONOLOG -DCHRONOLOG_INSTALL_DIR=<chronolog-install-path>
+
+For the CHRONOLOG writer, you can either:
+
+1. Set ``CHRONOLOG_INSTALL_DIR`` to point to your ChronoLog installation directory, or
+2. Ensure ChronoLog is findable via CMake's ``find_package()`` by adding it to ``CMAKE_PREFIX_PATH``
 
 Build DFTracer Dependencies
 ********************************
