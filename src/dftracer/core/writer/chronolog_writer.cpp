@@ -68,64 +68,65 @@ void ChronologWriter::initialize(const char* filename) {
 
   if (client_) {
     DFTRACER_LOG_INFO("ChronologWriter already initialized", "");
-  } else {
-    try {
-      // Create ClientPortalServiceConf
-      chronolog::ClientPortalServiceConf conf;
-      conf.PROTO_CONF = protocol_;
-      conf.IP = host_;
-      conf.PORT = port_;
-      conf.PROVIDER_ID = provider_id_;
+    return;
+  }
 
-      // Create and connect client
-      client_ = new chronolog::Client(conf);
-      int ret = client_->Connect();
-      if (ret != chronolog::CL_SUCCESS) {
-        DFTRACER_LOG_ERROR("Failed to connect to ChronoLog: error code %d", ret);
-        delete client_;
-        client_ = nullptr;
-        throw std::runtime_error("Failed to connect to ChronoLog");
-      }
-      DFTRACER_LOG_INFO("ChronoLog client connected", "");
+  try {
+    // Create ClientPortalServiceConf
+    chronolog::ClientPortalServiceConf conf;
+    conf.PROTO_CONF = protocol_;
+    conf.IP = host_;
+    conf.PORT = port_;
+    conf.PROVIDER_ID = provider_id_;
 
-      // Create chronicle
-      std::map<std::string, std::string> chronicle_attrs;
-      int chronicle_flags = 0;
-      ret = client_->CreateChronicle(chronicle_name_, chronicle_attrs, chronicle_flags);
-      if (ret != chronolog::CL_SUCCESS && ret != chronolog::CL_ERR_ACQUIRED) {
-        DFTRACER_LOG_ERROR("Failed to create chronicle '%s': error code %d", 
-                          chronicle_name_.c_str(), ret);
-        client_->Disconnect();
-        delete client_;
-        client_ = nullptr;
-        throw std::runtime_error("Failed to create ChronoLog chronicle");
-      }
-      DFTRACER_LOG_INFO("ChronoLog chronicle '%s' created or already exists", 
-                       chronicle_name_.c_str());
-
-      // Acquire story
-      std::map<std::string, std::string> story_attrs;
-      int story_flags = 0;
-      auto story_result = client_->AcquireStory(chronicle_name_, story_name_, 
-                                                 story_attrs, story_flags);
-      if (story_result.first != chronolog::CL_SUCCESS) {
-        DFTRACER_LOG_ERROR("Failed to acquire story '%s': error code %d", 
-                          story_name_.c_str(), story_result.first);
-        client_->DestroyChronicle(chronicle_name_);
-        client_->Disconnect();
-        delete client_;
-        client_ = nullptr;
-        throw std::runtime_error("Failed to acquire ChronoLog story");
-      }
-      story_handle_ = story_result.second;
-      DFTRACER_LOG_INFO("ChronoLog story '%s' acquired", story_name_.c_str());
-
-      init_pid_ = getpid();
-      DFTRACER_LOG_INFO("ChronologWriter initialized with PID %d", init_pid_);
-    } catch (const std::exception& e) {
-      DFTRACER_LOG_ERROR("Failed to initialize ChronologWriter", e.what());
-      throw;
+    // Create and connect client
+    client_ = new chronolog::Client(conf);
+    int ret = client_->Connect();
+    if (ret != chronolog::CL_SUCCESS) {
+      DFTRACER_LOG_ERROR("Failed to connect to ChronoLog: error code %d", ret);
+      delete client_;
+      client_ = nullptr;
+      throw std::runtime_error("Failed to connect to ChronoLog");
     }
+    DFTRACER_LOG_INFO("ChronoLog client connected", "");
+
+    // Create chronicle
+    std::map<std::string, std::string> chronicle_attrs;
+    int chronicle_flags = 0;
+    ret = client_->CreateChronicle(chronicle_name_, chronicle_attrs, chronicle_flags);
+    if (ret != chronolog::CL_SUCCESS && ret != chronolog::CL_ERR_ACQUIRED) {
+      DFTRACER_LOG_ERROR("Failed to create chronicle '%s': error code %d", 
+                        chronicle_name_.c_str(), ret);
+      client_->Disconnect();
+      delete client_;
+      client_ = nullptr;
+      throw std::runtime_error("Failed to create ChronoLog chronicle");
+    }
+    DFTRACER_LOG_INFO("ChronoLog chronicle '%s' created or already exists", 
+                     chronicle_name_.c_str());
+
+    // Acquire story
+    std::map<std::string, std::string> story_attrs;
+    int story_flags = 0;
+    auto story_result = client_->AcquireStory(chronicle_name_, story_name_, 
+                                               story_attrs, story_flags);
+    if (story_result.first != chronolog::CL_SUCCESS) {
+      DFTRACER_LOG_ERROR("Failed to acquire story '%s': error code %d", 
+                        story_name_.c_str(), story_result.first);
+      client_->DestroyChronicle(chronicle_name_);
+      client_->Disconnect();
+      delete client_;
+      client_ = nullptr;
+      throw std::runtime_error("Failed to acquire ChronoLog story");
+    }
+    story_handle_ = story_result.second;
+    DFTRACER_LOG_INFO("ChronoLog story '%s' acquired", story_name_.c_str());
+
+    init_pid_ = getpid();
+    DFTRACER_LOG_INFO("ChronologWriter initialized with PID %d", init_pid_);
+  } catch (const std::exception& e) {
+    DFTRACER_LOG_ERROR("Failed to initialize ChronologWriter", e.what());
+    throw;
   }
 }
 
