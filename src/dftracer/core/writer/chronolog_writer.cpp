@@ -103,6 +103,7 @@ void ChronologWriter::initialize(const char* filename) {
     DFTRACER_LOG_INFO("ChronoLog client connected", "");
 
     // Create chronicle
+    // Empty attrs and flags are fine - ChronoLog API accepts these for default behavior
     std::map<std::string, std::string> chronicle_attrs;
     int chronicle_flags = 0;
     ret = client_->CreateChronicle(chronicle_name_, chronicle_attrs, chronicle_flags);
@@ -118,6 +119,7 @@ void ChronologWriter::initialize(const char* filename) {
                      chronicle_name_.c_str());
 
     // Acquire story
+    // Empty attrs and flags are fine - ChronoLog API accepts these for default behavior
     std::map<std::string, std::string> story_attrs;
     int story_flags = 0;
     auto story_result = client_->AcquireStory(chronicle_name_, story_name_, 
@@ -143,6 +145,10 @@ void ChronologWriter::initialize(const char* filename) {
 }
 
 size_t ChronologWriter::write(const char* data, size_t len, bool force) {
+  // Note: 'force' parameter is part of WriterInterface but unused here.
+  // ChronoLog always writes immediately (no buffering), making force irrelevant.
+  (void)force;  // Suppress unused parameter warning
+  
   if (!story_handle_) {
     DFTRACER_LOG_ERROR("ChronoLog story not initialized", "");
     return 0;
