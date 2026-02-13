@@ -96,6 +96,7 @@ cmake .. \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" \
   -DDFTRACER_WRITER_TYPE=CHRONOLOG \
   -DCHRONOLOG_INSTALL_DIR="$CHRONOLOG_INSTALL_DIR" \
+  -DFTRACER_ENABLE_TESTS=ON \
   "${CMAKE_EXTRA[@]}"
 
 cmake --build . -j$(nproc 2>/dev/null || echo 4)
@@ -108,6 +109,10 @@ echo ""
 echo "To run an app with Chronolog:"
 echo "  1. Start ChronoVisor (e.g. from $CHRONOLOG_INSTALL_DIR/bin or conf)."
 echo "  2. export DFTRACER_ENABLE=1"
-echo "  3. export LD_PRELOAD=$INSTALL_PREFIX/lib/libdftracer_preload.so"
-echo "  4. If running from build dir (not install), export LD_LIBRARY_PATH=$CHRONOLOG_INSTALL_DIR/lib:\$LD_LIBRARY_PATH"
-echo "  5. Run your application."
+echo "  3. export DFTRACER_INIT=PRELOAD"
+echo "  4. export LD_PRELOAD=$INSTALL_PREFIX/lib/libdftracer_preload.so"
+echo "  5. export LD_LIBRARY_PATH=$CHRONOLOG_INSTALL_DIR/lib:\$LD_LIBRARY_PATH"
+echo "  6. Run your application (e.g. ls -la /tmp)."
+echo ""
+echo "Quick Chronolog smoke test (env from above, then):"
+echo "  mkdir -p /tmp/dftracer_test_data && $BUILD_DIR/bin/test_cpp /tmp/dftracer_test_data 1"
