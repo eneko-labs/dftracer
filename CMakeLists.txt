@@ -537,13 +537,17 @@ set(DFTRACER_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/service/servic
 
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVICE_SRC})
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-# When using Chronolog, do NOT link the service to the core target: that can cause the
-# linker to inherit link directories from the core (e.g. ChronoLog's lib), pulling in
-# libnl/libibverbs/librdmacm and undefined refs. Link to the core .so by path instead.
+# When using Chronolog: link the service to the core .so by path (not target) and tell
+# the linker to NOT copy DT_NEEDED from that .so. Otherwise the linker pulls in
+# libchronolog_client.so (from core's RPATH) and then libnl/libibverbs/librdmacm, which
+# need libnl_3 and fail. With --no-copy-dt-needed-entries the service only gets
+# DT_NEEDED for libdftracer_core.so; at runtime the loader loads core and then core's
+# DT_NEEDED (chronolog_client) via core's RPATH.
 if(DFTRACER_WRITER_TYPE_CHRONOLOG)
     set(_core_so "${CMAKE_BINARY_DIR}/${DFTRACER_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_core${CMAKE_SHARED_LIBRARY_SUFFIX}")
     target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} "${_core_so}")
     add_dependencies(${PROJECT_NAME}_service ${PROJECT_NAME}_core)
+    target_link_options(${PROJECT_NAME}_service PRIVATE "LINKER:--no-copy-dt-needed-entries")
 else()
     target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
 endif()
