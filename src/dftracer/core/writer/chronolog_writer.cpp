@@ -12,7 +12,7 @@ template <>
 bool Singleton<ChronologWriter>::stop_creating_instances = false;
 
 ChronologWriter::ChronologWriter()
-    : client_(nullptr), story_handle_(nullptr) {}
+    : client_(nullptr), story_handle_(nullptr), init_pid_(getpid()) {}
 
 ChronologWriter::~ChronologWriter() { finalize(0); }
 
@@ -66,9 +66,21 @@ void ChronologWriter::initialize(const char* filename) {
   const char* story_name_env = std::getenv("DFTRACER_CHRONOLOG_STORY_NAME");
   story_name_ = story_name_env ? story_name_env : "dftracer_story";
 
-  if (client_) {
+  // Check if already initialized in this process
+  if (client_ && init_pid_ == getpid()) {
     DFTRACER_LOG_INFO("ChronologWriter already initialized", "");
     return;
+  }
+
+  // Handle fork scenario: reset if this is a child process
+  if (client_ && init_pid_ != getpid()) {
+    DFTRACER_LOG_INFO(
+        "ChronologWriter detected fork (Init PID: %d, Current PID: %d). Resetting for child process.",
+        init_pid_, getpid());
+    // Don't cleanup inherited pointers, just reset them
+    client_ = nullptr;
+    story_handle_ = nullptr;
+    init_pid_ = getpid();
   }
 
   try {
@@ -138,9 +150,7 @@ size_t ChronologWriter::write(const char* data, size_t len, bool force) {
   try {
     // Log event as a string
     std::string event_data(data, len);
-    uint64_t event_id = story_handle_->log_event(event_data);
-    // Log the event ID for debugging purposes
-    DFTRACER_LOG_DEBUG("ChronoLog logged event with ID: %llu", (unsigned long long)event_id);
+    story_handle_->log_event(event_data);
     return len;
   } catch (const std::exception& e) {
     DFTRACER_LOG_ERROR("ChronoLog write failed", e.what());
