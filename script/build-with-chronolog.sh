@@ -21,26 +21,38 @@ CHRONOLOG_INSTALL_DIR="${CHRONOLOG_INSTALL_DIR:-/home/grc-iit/chronolog-install/
 BUILD_DIR="${DFTRACER_ROOT}/build"
 INSTALL_PREFIX="${DFTRACER_INSTALL_PREFIX:-${DFTRACER_ROOT}/install}"
 
-# If ChronoLog's Spack env is set, activate it so CMAKE_PREFIX_PATH gets the view (spdlog, etc.)
+# If ChronoLog's Spack env is set, activate it and/or set view path so spdlog is found.
 if [[ -n "${CHRONOLOG_SPACK_ENV:-}" ]] && command -v spack &>/dev/null; then
   ENV_ACTIVATE=""
+  ENV_DIR=""
   if [[ -d "$CHRONOLOG_SPACK_ENV" ]]; then
     if [[ -f "$CHRONOLOG_SPACK_ENV/.spack-env/activate.sh" ]]; then
       ENV_ACTIVATE="$CHRONOLOG_SPACK_ENV/.spack-env/activate.sh"
+      ENV_DIR="$CHRONOLOG_SPACK_ENV"
     else
-      ENV_ACTIVATE=$(spack location -e "$CHRONOLOG_SPACK_ENV" 2>/dev/null || true)
-      [[ -n "$ENV_ACTIVATE" && -f "$ENV_ACTIVATE/activate.sh" ]] && ENV_ACTIVATE="$ENV_ACTIVATE/activate.sh"
+      ENV_DIR=$(spack location -e "$CHRONOLOG_SPACK_ENV" 2>/dev/null || true)
+      [[ -n "$ENV_DIR" && -f "$ENV_DIR/activate.sh" ]] && ENV_ACTIVATE="$ENV_DIR/activate.sh"
     fi
   else
-    ENV_ACTIVATE=$(spack location -e "$CHRONOLOG_SPACK_ENV" 2>/dev/null || true)
-    [[ -n "$ENV_ACTIVATE" && -f "$ENV_ACTIVATE/activate.sh" ]] && ENV_ACTIVATE="$ENV_ACTIVATE/activate.sh"
+    ENV_DIR=$(spack location -e "$CHRONOLOG_SPACK_ENV" 2>/dev/null || true)
+    [[ -n "$ENV_DIR" && -f "$ENV_DIR/activate.sh" ]] && ENV_ACTIVATE="$ENV_DIR/activate.sh"
   fi
+  [[ -z "$ENV_DIR" && -d "$CHRONOLOG_SPACK_ENV" ]] && ENV_DIR="$CHRONOLOG_SPACK_ENV"
   if [[ -n "$ENV_ACTIVATE" && -f "$ENV_ACTIVATE" ]]; then
     echo "[DFTRACER] Activating ChronoLog Spack env: $CHRONOLOG_SPACK_ENV"
     set +e
     source "$ENV_ACTIVATE"
     set -e
   fi
+  # Ensure CMAKE_PREFIX_PATH and SPDLOG_INSTALL_DIR point at the env view so cmake finds spdlog
+  for VIEW_DIR in "${ENV_DIR}/.spack-env/view" "${CHRONOLOG_SPACK_ENV}/.spack-env/view"; do
+    if [[ -n "$VIEW_DIR" && -d "$VIEW_DIR" && -f "$VIEW_DIR/include/spdlog/common.h" ]]; then
+      export CMAKE_PREFIX_PATH="${VIEW_DIR}:${CMAKE_PREFIX_PATH}"
+      export SPDLOG_INSTALL_DIR="$VIEW_DIR"
+      echo "[DFTRACER] Using spdlog from Spack env view: $VIEW_DIR"
+      break
+    fi
+  done
 fi
 
 # Chronolog build needs patchelf to fix core RPATH so dftracer_service links (see CMakeLists.txt).
