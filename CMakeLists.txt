@@ -547,7 +547,8 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
     set(_core_so "${CMAKE_BINARY_DIR}/${DFTRACER_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_core${CMAKE_SHARED_LIBRARY_SUFFIX}")
     target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} "${_core_so}")
     add_dependencies(${PROJECT_NAME}_service ${PROJECT_NAME}_core)
-    target_link_options(${PROJECT_NAME}_service PRIVATE "LINKER:--no-copy-dt-needed-entries")
+    # Prevent linker from copying core's DT_NEEDED (chronolog_client → libnl etc); use -Wl, form so it reaches ld.
+    target_link_options(${PROJECT_NAME}_service PRIVATE "-Wl,--no-copy-dt-needed-entries")
 else()
     target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
 endif()
@@ -563,19 +564,21 @@ if (DFTRACER_BUILD_PYTHON_BINDINGS)
     list(APPEND DFTRACER_DEBUG_TARGETS ${PROJECT_NAME}_dbg)
 endif()
 
-# ChronoLog's lib in RPATH only for targets that link chronolog_client (so they can load it at
-# runtime). The service executable must NOT get this RPATH or the linker pulls in libnl etc.
+# ChronoLog's lib in RPATH for targets that link chronolog_client so they can load it at runtime.
+# Do NOT add it to BUILD_RPATH: when linking dftracer_service to libdftracer_core.so, the linker
+# reads the core's RPATH from the .so and uses it to find the core's DT_NEEDED (libchronolog_client),
+# then pulls in libnl/libibverbs/librdmacm and fails. So the built core .so must not have chronolog
+# in RPATH; we add it only to INSTALL_RPATH so installed binaries find ChronoLog. Run from build dir
+# with LD_LIBRARY_PATH including ChronoLog's lib if needed.
 if(DFTRACER_WRITER_TYPE_CHRONOLOG AND DEFINED CHRONOLOG_INSTALL_DIR)
     set(_chronolog_lib_dir "${CHRONOLOG_INSTALL_DIR}/lib")
     foreach(_tgt ${PROJECT_NAME}_core ${PROJECT_NAME}_core_dbg ${PROJECT_NAME}_preload ${PROJECT_NAME}_preload_dbg)
         set_target_properties(${_tgt} PROPERTIES
-            BUILD_RPATH "${CMAKE_BUILD_RPATH};${_chronolog_lib_dir}"
             INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
     endforeach()
     if(DFTRACER_BUILD_PYTHON_BINDINGS)
         foreach(_tgt ${PROJECT_NAME} ${PROJECT_NAME}_dbg)
             set_target_properties(${_tgt} PROPERTIES
-                BUILD_RPATH "${CMAKE_BUILD_RPATH};${_chronolog_lib_dir}"
                 INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
         endforeach()
     endif()
