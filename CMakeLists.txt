@@ -537,7 +537,16 @@ set(DFTRACER_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/service/servic
 
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVICE_SRC})
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
+# When using Chronolog, do NOT link the service to the core target: that can cause the
+# linker to inherit link directories from the core (e.g. ChronoLog's lib), pulling in
+# libnl/libibverbs/librdmacm and undefined refs. Link to the core .so by path instead.
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    set(_core_so "${CMAKE_BINARY_DIR}/${DFTRACER_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_core${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} "${_core_so}")
+    add_dependencies(${PROJECT_NAME}_service ${PROJECT_NAME}_core)
+else()
+    target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
+endif()
 
 if (DFTRACER_BUILD_PYTHON_BINDINGS)
     pybind11_add_module(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/python/dftracer.cpp)
