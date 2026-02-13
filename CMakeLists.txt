@@ -363,8 +363,15 @@ endif()
 if(DFTRACER_WRITER_TYPE_CHRONOLOG)
     if(DEFINED CHRONOLOG_INSTALL_DIR)
         include_directories(${CHRONOLOG_INSTALL_DIR}/include)
-        link_directories(${CHRONOLOG_INSTALL_DIR}/lib)
-        set(CHRONOLOG_CLIENT_LIB "chronolog_client")
+        # Link only libchronolog_client by full path so the linker does not pull in other
+        # libs from ChronoLog's lib (e.g. libibverbs, librdmacm, libnl) which would
+        # require their transitive deps and can cause undefined refs (e.g. libnl_3).
+        find_library(CHRONOLOG_CLIENT_LIB NAMES chronolog_client
+            PATHS ${CHRONOLOG_INSTALL_DIR}/lib NO_DEFAULT_PATH)
+        if(NOT CHRONOLOG_CLIENT_LIB)
+            message(FATAL_ERROR "[DFTRACER] libchronolog_client not found in ${CHRONOLOG_INSTALL_DIR}/lib")
+        endif()
+        list(APPEND DEPENDENCY_LIBRARY_DIRS ${CHRONOLOG_INSTALL_DIR}/lib)
         message(STATUS "[DFTRACER] Using ChronoLog from CHRONOLOG_INSTALL_DIR: ${CHRONOLOG_INSTALL_DIR}")
         # ChronoLog was likely built with a Spack env; spdlog lives in that view, not in ChronoLog's install.
         # Add parent of ChronoLog install to search path so a unified view (chronolog-install = view root) is found.
