@@ -25,10 +25,40 @@ void ChronologWriter::initialize(const char* filename) {
   host_ = host_env ? host_env : "127.0.0.1";
 
   const char* port_env = std::getenv("DFTRACER_CHRONOLOG_PORT");
-  port_ = port_env ? static_cast<uint16_t>(std::atoi(port_env)) : 5555;
+  if (port_env) {
+    try {
+      int port_val = std::stoi(port_env);
+      if (port_val > 0 && port_val <= 65535) {
+        port_ = static_cast<uint16_t>(port_val);
+      } else {
+        DFTRACER_LOG_ERROR("Invalid DFTRACER_CHRONOLOG_PORT value: %s, using default 5555", port_env);
+        port_ = 5555;
+      }
+    } catch (const std::exception& e) {
+      DFTRACER_LOG_ERROR("Failed to parse DFTRACER_CHRONOLOG_PORT: %s, using default 5555", e.what());
+      port_ = 5555;
+    }
+  } else {
+    port_ = 5555;
+  }
 
   const char* provider_id_env = std::getenv("DFTRACER_CHRONOLOG_PROVIDER_ID");
-  provider_id_ = provider_id_env ? static_cast<uint16_t>(std::atoi(provider_id_env)) : 55;
+  if (provider_id_env) {
+    try {
+      int provider_id_val = std::stoi(provider_id_env);
+      if (provider_id_val >= 0 && provider_id_val <= 65535) {
+        provider_id_ = static_cast<uint16_t>(provider_id_val);
+      } else {
+        DFTRACER_LOG_ERROR("Invalid DFTRACER_CHRONOLOG_PROVIDER_ID value: %s, using default 55", provider_id_env);
+        provider_id_ = 55;
+      }
+    } catch (const std::exception& e) {
+      DFTRACER_LOG_ERROR("Failed to parse DFTRACER_CHRONOLOG_PROVIDER_ID: %s, using default 55", e.what());
+      provider_id_ = 55;
+    }
+  } else {
+    provider_id_ = 55;
+  }
 
   const char* chronicle_name_env = std::getenv("DFTRACER_CHRONOLOG_CHRONICLE_NAME");
   chronicle_name_ = chronicle_name_env ? chronicle_name_env : "dftracer_chronicle";
@@ -108,10 +138,8 @@ size_t ChronologWriter::write(const char* data, size_t len, bool force) {
     // Log event as a string
     std::string event_data(data, len);
     uint64_t event_id = story_handle_->log_event(event_data);
-    if (event_id == 0) {
-      DFTRACER_LOG_ERROR("ChronoLog log_event failed", "");
-      return 0;
-    }
+    // Log the event ID for debugging purposes
+    DFTRACER_LOG_DEBUG("ChronoLog logged event with ID: %llu", (unsigned long long)event_id);
     return len;
   } catch (const std::exception& e) {
     DFTRACER_LOG_ERROR("ChronoLog write failed", e.what());
