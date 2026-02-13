@@ -371,7 +371,9 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
         if(NOT CHRONOLOG_CLIENT_LIB)
             message(FATAL_ERROR "[DFTRACER] libchronolog_client not found in ${CHRONOLOG_INSTALL_DIR}/lib")
         endif()
-        list(APPEND DEPENDENCY_LIBRARY_DIRS ${CHRONOLOG_INSTALL_DIR}/lib)
+        # Do NOT add ChronoLog's lib to global DEPENDENCY_LIBRARY_DIRS/RPATH; the service
+        # executable would get that RPATH and the linker would pull in libnl etc. We add
+        # ChronoLog's lib to RPATH only on targets that link chronolog_client (see below).
         message(STATUS "[DFTRACER] Using ChronoLog from CHRONOLOG_INSTALL_DIR: ${CHRONOLOG_INSTALL_DIR}")
         # ChronoLog was likely built with a Spack env; spdlog lives in that view, not in ChronoLog's install.
         # Add parent of ChronoLog install to search path so a unified view (chronolog-install = view root) is found.
@@ -553,6 +555,24 @@ if (DFTRACER_BUILD_PYTHON_BINDINGS)
     target_compile_definitions(${PROJECT_NAME}_dbg PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
     target_link_libraries(${PROJECT_NAME}_dbg PRIVATE ${DEPENDENCY_LIB} ${PROJECT_NAME}_core_dbg)
     list(APPEND DFTRACER_DEBUG_TARGETS ${PROJECT_NAME}_dbg)
+endif()
+
+# ChronoLog's lib in RPATH only for targets that link chronolog_client (so they can load it at
+# runtime). The service executable must NOT get this RPATH or the linker pulls in libnl etc.
+if(DFTRACER_WRITER_TYPE_CHRONOLOG AND DEFINED CHRONOLOG_INSTALL_DIR)
+    set(_chronolog_lib_dir "${CHRONOLOG_INSTALL_DIR}/lib")
+    foreach(_tgt ${PROJECT_NAME}_core ${PROJECT_NAME}_core_dbg ${PROJECT_NAME}_preload ${PROJECT_NAME}_preload_dbg)
+        set_target_properties(${_tgt} PROPERTIES
+            BUILD_RPATH "${CMAKE_BUILD_RPATH};${_chronolog_lib_dir}"
+            INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
+    endforeach()
+    if(DFTRACER_BUILD_PYTHON_BINDINGS)
+        foreach(_tgt ${PROJECT_NAME} ${PROJECT_NAME}_dbg)
+            set_target_properties(${_tgt} PROPERTIES
+                BUILD_RPATH "${CMAKE_BUILD_RPATH};${_chronolog_lib_dir}"
+                INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
+        endforeach()
+    endif()
 endif()
 
 target_sources(${PROJECT_NAME}_core PRIVATE ${DFTRACER_CORE_SRC})
