@@ -547,8 +547,9 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
     set(_core_so "${CMAKE_BINARY_DIR}/${DFTRACER_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_core${CMAKE_SHARED_LIBRARY_SUFFIX}")
     target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} "${_core_so}")
     add_dependencies(${PROJECT_NAME}_service ${PROJECT_NAME}_core)
-    # Prevent linker from copying core's DT_NEEDED (chronolog_client → libnl etc); use -Wl, form so it reaches ld.
-    target_link_options(${PROJECT_NAME}_service PRIVATE "-Wl,--no-copy-dt-needed-entries")
+    # Core's RPATH was stripped so the linker can't find libchronolog_client; allow unresolved
+    # symbols in the linked .so (they are resolved at runtime when the loader loads core and chronolog).
+    target_link_options(${PROJECT_NAME}_service PRIVATE "-Wl,--no-copy-dt-needed-entries" "-Wl,--allow-shlib-undefined")
 else()
     target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
 endif()
