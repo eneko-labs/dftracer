@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Build DFTracer with Chronolog writer backend.
 # Run from the dftracer repo root (e.g. /home/grc-iit/dftracer).
-# Set CHRONOLOG_INSTALL_DIR if ChronoLog is not at the path below.
+#
+# Dependencies (ChronoLog and spdlog) should be provided by Spack when possible:
+#   spack load chronolog spdlog
+#   # or use a Spack env and activate it, then run this script so CMAKE_PREFIX_PATH is set
+# Set CHRONOLOG_INSTALL_DIR if ChronoLog is not in your path/Spack view.
 
 set -e
 
@@ -13,9 +17,10 @@ INSTALL_PREFIX="${DFTRACER_INSTALL_PREFIX:-${DFTRACER_ROOT}/install}"
 
 echo "[DFTRACER] Building with Chronolog backend"
 echo "  DFTracer root:      $DFTRACER_ROOT"
-echo "  ChronoLog install: $CHRONOLOG_INSTALL_DIR"
-echo "  Build dir:         $BUILD_DIR"
-echo "  Install prefix:    $INSTALL_PREFIX"
+echo "  ChronoLog install:  $CHRONOLOG_INSTALL_DIR"
+echo "  Build dir:          $BUILD_DIR"
+echo "  Install prefix:     $INSTALL_PREFIX"
+echo "  CMAKE_PREFIX_PATH:  ${CMAKE_PREFIX_PATH:-<not set>}"
 
 if [[ ! -d "$CHRONOLOG_INSTALL_DIR" ]]; then
   echo "ERROR: ChronoLog install dir not found: $CHRONOLOG_INSTALL_DIR"
@@ -31,10 +36,17 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
+# Pass CMAKE_PREFIX_PATH through so Spack-provided deps (e.g. spdlog) are found
+CMAKE_EXTRA=()
+if [[ -n "$CMAKE_PREFIX_PATH" ]]; then
+  CMAKE_EXTRA+=(-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH")
+fi
+
 cmake .. \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" \
   -DDFTRACER_WRITER_TYPE=CHRONOLOG \
-  -DCHRONOLOG_INSTALL_DIR="$CHRONOLOG_INSTALL_DIR"
+  -DCHRONOLOG_INSTALL_DIR="$CHRONOLOG_INSTALL_DIR" \
+  "${CMAKE_EXTRA[@]}"
 
 cmake --build . -j$(nproc 2>/dev/null || echo 4)
 cmake --install .

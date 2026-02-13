@@ -166,7 +166,7 @@ DFTracer supports multiple writer backends that can be selected at compile time 
   - ``DFTRACER_MOFKA_TOPIC_NAME``: Name of the Mofka topic (default: "dftracer_events")
 
 **CHRONOLOG Writer**
-  Writes trace data to ChronoLog distributed event logging system. Requires the ChronoLog client library to be installed.
+  Writes trace data to ChronoLog distributed event logging system. Requires the ChronoLog client library and spdlog (a ChronoLog dependency). When using Spack, load both (e.g. ``spack load chronolog spdlog``) or use a Spack environment and set ``CMAKE_PREFIX_PATH`` so both are findable.
   
   Runtime configuration (via environment variables):
   
@@ -194,6 +194,8 @@ For the CHRONOLOG writer, you can either:
 
 1. Set ``CHRONOLOG_INSTALL_DIR`` to point to your ChronoLog installation directory, or
 2. Ensure ChronoLog is findable via CMake's ``find_package()`` by adding it to ``CMAKE_PREFIX_PATH``
+
+  spdlog (required by ChronoLog headers) is found via ``find_package(spdlog)`` or by searching ``CMAKE_PREFIX_PATH`` (e.g. when using a Spack environment). You can also set ``SPDLOG_INSTALL_DIR``. The script ``script/build-with-chronolog.sh`` forwards ``CMAKE_PREFIX_PATH`` to CMake so Spack-provided dependencies are used when present.
 
 Build DFTracer Dependencies
 ********************************
