@@ -565,11 +565,10 @@ if (DFTRACER_BUILD_PYTHON_BINDINGS)
 endif()
 
 # ChronoLog's lib in RPATH for targets that link chronolog_client so they can load it at runtime.
-# Do NOT add it to BUILD_RPATH: when linking dftracer_service to libdftracer_core.so, the linker
-# reads the core's RPATH from the .so and uses it to find the core's DT_NEEDED (libchronolog_client),
-# then pulls in libnl/libibverbs/librdmacm and fails. So the built core .so must not have chronolog
-# in RPATH; we add it only to INSTALL_RPATH so installed binaries find ChronoLog. Run from build dir
-# with LD_LIBRARY_PATH including ChronoLog's lib if needed.
+# The linker adds the dir of libchronolog_client.so to the core's RPATH when linking the core,
+# so the built core .so would still point to chronolog's lib and the service link would pull in
+# libnl etc. We strip that by overwriting the core's RPATH with patchelf after build (build dir
+# only); install uses INSTALL_RPATH which includes ChronoLog.
 if(DFTRACER_WRITER_TYPE_CHRONOLOG AND DEFINED CHRONOLOG_INSTALL_DIR)
     set(_chronolog_lib_dir "${CHRONOLOG_INSTALL_DIR}/lib")
     foreach(_tgt ${PROJECT_NAME}_core ${PROJECT_NAME}_core_dbg ${PROJECT_NAME}_preload ${PROJECT_NAME}_preload_dbg)
@@ -582,6 +581,21 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG AND DEFINED CHRONOLOG_INSTALL_DIR)
                 INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
         endforeach()
     endif()
+    # Overwrite built core .so RPATH so it does NOT contain chronolog's lib; then linking
+    # dftracer_service to the core won't find libchronolog_client and won't pull in libnl.
+    find_program(PATCHELF patchelf)
+    if(NOT PATCHELF)
+        message(FATAL_ERROR "[DFTRACER] Building with Chronolog requires patchelf to fix the core RPATH (e.g. apt install patchelf).")
+    endif()
+    string(REPLACE ";" ":" _build_rpath_colon "${CMAKE_BUILD_RPATH}")
+    add_custom_command(TARGET ${PROJECT_NAME}_core POST_BUILD
+        COMMAND ${PATCHELF} --set-rpath "${_build_rpath_colon}" $<TARGET_FILE:${PROJECT_NAME}_core>
+        COMMENT "[DFTRACER] Stripping ChronoLog from core RPATH so service can link"
+        VERBATIM)
+    add_custom_command(TARGET ${PROJECT_NAME}_core_dbg POST_BUILD
+        COMMAND ${PATCHELF} --set-rpath "${_build_rpath_colon}" $<TARGET_FILE:${PROJECT_NAME}_core_dbg>
+        COMMENT "[DFTRACER] Stripping ChronoLog from core_dbg RPATH so service can link"
+        VERBATIM)
 endif()
 
 target_sources(${PROJECT_NAME}_core PRIVATE ${DFTRACER_CORE_SRC})

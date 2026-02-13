@@ -43,6 +43,12 @@ if [[ -n "${CHRONOLOG_SPACK_ENV:-}" ]] && command -v spack &>/dev/null; then
   fi
 fi
 
+# Chronolog build needs patchelf to fix core RPATH so dftracer_service links (see CMakeLists.txt).
+if ! command -v patchelf &>/dev/null; then
+  echo "[DFTRACER] ERROR: patchelf is required for Chronolog build (e.g. apt install patchelf)."
+  exit 1
+fi
+
 echo "[DFTRACER] Building with Chronolog backend"
 echo "  DFTracer root:      $DFTRACER_ROOT"
 echo "  ChronoLog install:  $CHRONOLOG_INSTALL_DIR"
