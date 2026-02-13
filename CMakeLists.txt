@@ -434,12 +434,28 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
         endforeach()
     endif()
     if(NOT spdlog_FOUND)
+        # Fallback: fetch spdlog so the build works without Spack env (e.g. in CI or when view is elsewhere)
+        include(FetchContent)
+        FetchContent_Declare(
+            spdlog
+            GIT_REPOSITORY https://github.com/gabime/spdlog.git
+            GIT_TAG        v1.12.1
+            GIT_SHALLOW    TRUE
+        )
+        set(SPDLOG_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(spdlog)
+        if(TARGET spdlog::spdlog)
+            set(spdlog_FOUND TRUE)
+            message(STATUS "[DFTRACER] Using spdlog from FetchContent (v1.12.1)")
+        endif()
+    endif()
+    if(NOT spdlog_FOUND)
         message(FATAL_ERROR
-            "[DFTRACER] ChronoLog's headers include spdlog, but spdlog was not found.\n"
-            "ChronoLog is built with a Spack env (spdlog in the env view); you must use that same env when building DFTracer:\n"
-            "  1. Activate the ChronoLog Spack env:  spack env activate /path/to/ChronoLog  (or your env name)\n"
-            "  2. Then run the DFTracer build so CMAKE_PREFIX_PATH includes the view.\n"
-            "Or set SPDLOG_INSTALL_DIR to spdlog's prefix, or pass -DCMAKE_PREFIX_PATH=<view-path>.")
+            "[DFTRACER] ChronoLog's headers include spdlog, but spdlog was not found and FetchContent failed.\n"
+            "ChronoLog is built with a Spack env (spdlog in the env view); you can:\n"
+            "  1. Activate the ChronoLog Spack env:  spack env activate /path/to/ChronoLog\n"
+            "  2. Set SPDLOG_INSTALL_DIR to spdlog's prefix, or pass -DCMAKE_PREFIX_PATH=<view-path>.")
     endif()
     if(spdlog_FOUND)
         if(TARGET spdlog::spdlog)
