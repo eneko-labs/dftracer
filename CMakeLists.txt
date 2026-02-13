@@ -449,21 +449,13 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
             include_directories(${SPDLOG_INCLUDE_DIR})
         endif()
     endif()
-    set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${CHRONOLOG_CLIENT_LIB})
+    # Do NOT add CHRONOLOG_CLIENT_LIB to DEPENDENCY_LIB; we link it PRIVATE to core only
+    # so targets that link to core (e.g. dftracer_service) do not inherit it and the
+    # linker does not pull in ChronoLog's transitive deps (libibverbs, librdmacm, libnl).
     message(STATUS "[DFTRACER] ChronoLog writer backend enabled")
 endif()
 
-# For executables (e.g. dftracer_service), do not link ChronoLog client directly so the
-# linker does not pull in its transitive deps (libibverbs, librdmacm, libnl). The client
-# is loaded at runtime via dftracer_core's DT_NEEDED when LD_LIBRARY_PATH includes ChronoLog's lib.
-set(DEPENDENCY_LIB_FOR_EXECUTABLES "")
-foreach(_dep IN LISTS DEPENDENCY_LIB)
-    if(DFTRACER_WRITER_TYPE_CHRONOLOG AND ("${_dep}" MATCHES "chronolog_client" OR "${_dep}" STREQUAL "${CHRONOLOG_CLIENT_LIB}"))
-        # skip
-    else()
-        list(APPEND DEPENDENCY_LIB_FOR_EXECUTABLES ${_dep})
-    endif()
-endforeach()
+set(DEPENDENCY_LIB_FOR_EXECUTABLES ${DEPENDENCY_LIB})
 
 # Set RPATH to all dependency library dirs
 list(REMOVE_DUPLICATES DEPENDENCY_LIBRARY_DIRS)
@@ -527,8 +519,14 @@ endif()
 add_library(${PROJECT_NAME}_core SHARED)
 target_compile_definitions(${PROJECT_NAME}_core PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
 target_link_libraries(${PROJECT_NAME}_core ${DEPENDENCY_LIB})
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    target_link_libraries(${PROJECT_NAME}_core PRIVATE ${CHRONOLOG_CLIENT_LIB})
+endif()
 add_library(${PROJECT_NAME}_core_dbg SHARED)
 target_link_libraries(${PROJECT_NAME}_core_dbg ${DEPENDENCY_LIB})
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    target_link_libraries(${PROJECT_NAME}_core_dbg PRIVATE ${CHRONOLOG_CLIENT_LIB})
+endif()
 add_library(${PROJECT_NAME}_preload SHARED)
 target_link_libraries(${PROJECT_NAME}_preload ${DEPENDENCY_LIB} ${PROJECT_NAME}_core)
 add_library(${PROJECT_NAME}_preload_dbg SHARED)
@@ -540,11 +538,6 @@ set(DFTRACER_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/service/servic
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVICE_SRC})
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
 target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
-# Do not pull in dftracer_core's transitive deps (e.g. chronolog_client → libnl) at link time;
-# they are resolved at runtime when the loader loads dftracer_core.
-if(DFTRACER_WRITER_TYPE_CHRONOLOG)
-    target_link_options(${PROJECT_NAME}_service PRIVATE "LINKER:--no-add-needed")
-endif()
 
 if (DFTRACER_BUILD_PYTHON_BINDINGS)
     pybind11_add_module(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/python/dftracer.cpp)
