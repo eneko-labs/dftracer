@@ -22,7 +22,7 @@ BUILD_DIR="${DFTRACER_ROOT}/build"
 INSTALL_PREFIX="${DFTRACER_INSTALL_PREFIX:-${DFTRACER_ROOT}/install}"
 
 # If ChronoLog's Spack env is set, activate it and/or set view path so spdlog is found.
-# We do not require 'spack' in PATH: the view is at <env>/.spack-env/view by default.
+# We do not require 'spack' in PATH: try standard view path, then search under env dir.
 if [[ -n "${CHRONOLOG_SPACK_ENV:-}" ]]; then
   ENV_ACTIVATE=""
   ENV_DIR=""
@@ -45,15 +45,27 @@ if [[ -n "${CHRONOLOG_SPACK_ENV:-}" ]]; then
     source "$ENV_ACTIVATE"
     set -e
   fi
-  # Ensure CMAKE_PREFIX_PATH and SPDLOG_INSTALL_DIR point at the env view (no 'spack' required)
+  # Prefer standard Spack view path, then search for spdlog anywhere under the env dir
+  VIEW_FOUND=""
   for VIEW_DIR in "${ENV_DIR}/.spack-env/view" "${CHRONOLOG_SPACK_ENV}/.spack-env/view"; do
     if [[ -n "$VIEW_DIR" && -d "$VIEW_DIR" && -f "$VIEW_DIR/include/spdlog/common.h" ]]; then
       export CMAKE_PREFIX_PATH="${VIEW_DIR}:${CMAKE_PREFIX_PATH}"
       export SPDLOG_INSTALL_DIR="$VIEW_DIR"
       echo "[DFTRACER] Using spdlog from Spack env view: $VIEW_DIR"
+      VIEW_FOUND=1
       break
     fi
   done
+  if [[ -z "$VIEW_FOUND" && -d "${CHRONOLOG_SPACK_ENV}" ]]; then
+    SPDLOG_COMMON=$(find "$CHRONOLOG_SPACK_ENV" -maxdepth 6 -type f -path '*/include/spdlog/common.h' 2>/dev/null | head -1)
+    if [[ -n "$SPDLOG_COMMON" ]]; then
+      # e.g. .../view/include/spdlog/common.h -> prefix is .../view
+      SPDPREFIX="$(cd "$(dirname "$(dirname "$(dirname "$SPDLOG_COMMON")")")" && pwd)"
+      export CMAKE_PREFIX_PATH="${SPDPREFIX}:${CMAKE_PREFIX_PATH}"
+      export SPDLOG_INSTALL_DIR="$SPDPREFIX"
+      echo "[DFTRACER] Using spdlog from Spack env (found under CHRONOLOG_SPACK_ENV): $SPDPREFIX"
+    fi
+  fi
 fi
 
 # Chronolog build needs patchelf to fix core RPATH so dftracer_service links (see CMakeLists.txt).
@@ -86,9 +98,15 @@ if [[ -z "${SPDLOG_INSTALL_DIR:-}" ]] && command -v spack &>/dev/null; then
     echo "[DFTRACER] Using spdlog from Spack: $SPDLOG_INSTALL_DIR"
   fi
 fi
-if [[ -z "${SPDLOG_INSTALL_DIR:-}" && -z "${CMAKE_PREFIX_PATH:-}" ]]; then
-  echo "[DFTRACER] Hint: ChronoLog's headers need spdlog from the same Spack env ChronoLog was built with."
-  echo "  Set CHRONOLOG_SPACK_ENV=/path/to/ChronoLog (repo or env name) and re-run, or activate that env first."
+if [[ -z "${SPDLOG_INSTALL_DIR:-}" ]]; then
+  if [[ -n "${CHRONOLOG_SPACK_ENV:-}" ]]; then
+    echo "[DFTRACER] Could not find spdlog under CHRONOLOG_SPACK_ENV=$CHRONOLOG_SPACK_ENV"
+    echo "  Checked: ${CHRONOLOG_SPACK_ENV}/.spack-env/view and searched up to 6 levels deep."
+  fi
+  if [[ -z "${CMAKE_PREFIX_PATH:-}" ]]; then
+    echo "[DFTRACER] Hint: ChronoLog's headers need spdlog from the same Spack env ChronoLog was built with."
+    echo "  Set CHRONOLOG_SPACK_ENV=/path/to/ChronoLog (repo or env name) and re-run, or activate that env first."
+  fi
 fi
 
 cd "$DFTRACER_ROOT"
