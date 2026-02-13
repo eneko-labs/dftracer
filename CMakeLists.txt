@@ -366,6 +366,12 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
         link_directories(${CHRONOLOG_INSTALL_DIR}/lib)
         set(CHRONOLOG_CLIENT_LIB "chronolog_client")
         message(STATUS "[DFTRACER] Using ChronoLog from CHRONOLOG_INSTALL_DIR: ${CHRONOLOG_INSTALL_DIR}")
+        # ChronoLog was likely built with a Spack env; spdlog lives in that view, not in ChronoLog's install.
+        # Add parent of ChronoLog install to search path so a unified view (chronolog-install = view root) is found.
+        get_filename_component(_chronolog_parent "${CHRONOLOG_INSTALL_DIR}" DIRECTORY)
+        if(_chronolog_parent AND NOT "${_chronolog_parent}" STREQUAL "${CHRONOLOG_INSTALL_DIR}")
+            list(APPEND CMAKE_PREFIX_PATH "${_chronolog_parent}")
+        endif()
     else()
         find_package(chronolog QUIET)
         if(chronolog_FOUND)
@@ -393,6 +399,19 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
             set(spdlog_FOUND TRUE)
         endif()
     endif()
+    # Search CHRONOLOG_INSTALL_DIR's parent (unified install or view root) before other paths
+    if(NOT spdlog_FOUND AND DEFINED CHRONOLOG_INSTALL_DIR)
+        get_filename_component(_chronolog_parent "${CHRONOLOG_INSTALL_DIR}" DIRECTORY)
+        if(_chronolog_parent)
+            find_path(SPDLOG_INCLUDE_DIR NAMES spdlog/common.h
+                PATHS "${_chronolog_parent}/include" "${_chronolog_parent}"
+                NO_DEFAULT_PATH DOC "spdlog (e.g. from same Spack view as ChronoLog)")
+            if(SPDLOG_INCLUDE_DIR)
+                set(spdlog_FOUND TRUE)
+                message(STATUS "[DFTRACER] Found spdlog next to ChronoLog install: ${SPDLOG_INCLUDE_DIR}")
+            endif()
+        endif()
+    endif()
     if(NOT spdlog_FOUND AND CMAKE_PREFIX_PATH)
         # Prefer Spack / CMAKE_PREFIX_PATH so dependencies can be supplied by Spack env
         foreach(_prefix ${CMAKE_PREFIX_PATH})
@@ -406,7 +425,12 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
         endforeach()
     endif()
     if(NOT spdlog_FOUND)
-        message(FATAL_ERROR "[DFTRACER] ChronoLog requires spdlog. Use Spack (e.g. spack load spdlog, or add spdlog to your Spack env and set CMAKE_PREFIX_PATH), set SPDLOG_INSTALL_DIR, or install system spdlog.")
+        message(FATAL_ERROR
+            "[DFTRACER] ChronoLog's headers include spdlog, but spdlog was not found.\n"
+            "ChronoLog is built with a Spack env (spdlog in the env view); you must use that same env when building DFTracer:\n"
+            "  1. Activate the ChronoLog Spack env:  spack env activate /path/to/ChronoLog  (or your env name)\n"
+            "  2. Then run the DFTracer build so CMAKE_PREFIX_PATH includes the view.\n"
+            "Or set SPDLOG_INSTALL_DIR to spdlog's prefix, or pass -DCMAKE_PREFIX_PATH=<view-path>.")
     endif()
     if(spdlog_FOUND)
         if(TARGET spdlog::spdlog)

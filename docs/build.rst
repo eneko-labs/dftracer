@@ -166,7 +166,7 @@ DFTracer supports multiple writer backends that can be selected at compile time 
   - ``DFTRACER_MOFKA_TOPIC_NAME``: Name of the Mofka topic (default: "dftracer_events")
 
 **CHRONOLOG Writer**
-  Writes trace data to ChronoLog distributed event logging system. Requires the ChronoLog client library and spdlog (a ChronoLog dependency). When using Spack, load both (e.g. ``spack load chronolog spdlog``) or use a Spack environment and set ``CMAKE_PREFIX_PATH`` so both are findable.
+  Writes trace data to ChronoLog distributed event logging system. Requires the ChronoLog client library. ChronoLog's public headers (e.g. ``ClientConfiguration.h``) include ``spdlog``; ChronoLog does not install spdlog itself—it is provided by the Spack environment used to build ChronoLog (see ChronoLog's ``spack.yaml``). When building DFTracer with the CHRONOLOG writer, use the **same** Spack environment: activate it (e.g. ``spack env activate /path/to/ChronoLog``) or set ``CHRONOLOG_SPACK_ENV`` and run ``script/build-with-chronolog.sh`` so ``CMAKE_PREFIX_PATH`` includes the view and spdlog is found.
   
   Runtime configuration (via environment variables):
   
@@ -195,7 +195,7 @@ For the CHRONOLOG writer, you can either:
 1. Set ``CHRONOLOG_INSTALL_DIR`` to point to your ChronoLog installation directory, or
 2. Ensure ChronoLog is findable via CMake's ``find_package()`` by adding it to ``CMAKE_PREFIX_PATH``
 
-  spdlog (required by ChronoLog headers) is found via ``find_package(spdlog)`` or by searching ``CMAKE_PREFIX_PATH`` (e.g. when using a Spack environment). You can also set ``SPDLOG_INSTALL_DIR``. The script ``script/build-with-chronolog.sh`` forwards ``CMAKE_PREFIX_PATH`` to CMake so Spack-provided dependencies are used when present.
+  spdlog (required by ChronoLog headers) is found from the ChronoLog Spack env view (when that env is active or ``CHRONOLOG_SPACK_ENV`` is set), from ``CMAKE_PREFIX_PATH``, or from ``SPDLOG_INSTALL_DIR``. The script ``script/build-with-chronolog.sh`` can source the ChronoLog Spack env when ``CHRONOLOG_SPACK_ENV`` is set so the same view used to build ChronoLog is used when building DFTracer.
 
 Build DFTracer Dependencies
 ********************************
