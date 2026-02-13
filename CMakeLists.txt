@@ -451,6 +451,14 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
     message(STATUS "[DFTRACER] ChronoLog writer backend enabled")
 endif()
 
+# For executables (e.g. dftracer_service), do not link ChronoLog client directly so the
+# linker does not pull in its transitive deps (libibverbs, librdmacm, libnl). The client
+# is loaded at runtime via dftracer_core's DT_NEEDED when LD_LIBRARY_PATH includes ChronoLog's lib.
+set(DEPENDENCY_LIB_FOR_EXECUTABLES ${DEPENDENCY_LIB})
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    list(REMOVE_ITEM DEPENDENCY_LIB_FOR_EXECUTABLES ${CHRONOLOG_CLIENT_LIB})
+endif()
+
 # Set RPATH to all dependency library dirs
 list(REMOVE_DUPLICATES DEPENDENCY_LIBRARY_DIRS)
 set(CMAKE_INSTALL_RPATH "${DEPENDENCY_LIBRARY_DIRS}")
@@ -525,7 +533,7 @@ set(DFTRACER_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/service/servic
 
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVICE_SRC})
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB} ${PROJECT_NAME}_core)
+target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
 
 if (DFTRACER_BUILD_PYTHON_BINDINGS)
     pybind11_add_module(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/python/dftracer.cpp)
