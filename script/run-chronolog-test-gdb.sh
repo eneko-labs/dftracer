@@ -10,11 +10,7 @@ INSTALL_PREFIX="${DFTRACER_INSTALL_PREFIX:-${DFTRACER_ROOT}/install}"
 CHRONOLOG_INSTALL_DIR="${CHRONOLOG_INSTALL_DIR:-/home/grc-iit/chronolog-install/chronolog}"
 BUILD_DIR="${DFTRACER_ROOT}/build"
 
-export DFTRACER_ENABLE=1
-export DFTRACER_INIT=PRELOAD
-export LD_PRELOAD="${INSTALL_PREFIX}/lib/libdftracer_preload.so"
-export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${CHRONOLOG_INSTALL_DIR}/lib:${LD_LIBRARY_PATH:-}"
-
+# Do not export LD_PRELOAD here - otherwise every command (mkdir, gdb) gets preloaded and may crash.
 mkdir -p /tmp/dftracer_test_data
 
 if ! command -v gdb &>/dev/null; then
@@ -26,7 +22,7 @@ echo "Running test under GDB. On abort, backtrace will be printed."
 exec gdb -batch \
      -ex "set environment DFTRACER_ENABLE=1" \
      -ex "set environment DFTRACER_INIT=PRELOAD" \
-     -ex "set environment LD_PRELOAD=${LD_PRELOAD}" \
+     -ex "set environment LD_PRELOAD=${INSTALL_PREFIX}/lib/libdftracer_preload.so" \
      -ex "set environment LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${CHRONOLOG_INSTALL_DIR}/lib" \
      -ex "run" \
      -ex "bt" \
