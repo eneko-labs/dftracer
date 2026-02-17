@@ -45,12 +45,10 @@ int main(int argc, char* argv[]) {
   FILE* fh = fopen(filename, "w+");
   fwrite("hello", sizeof("hello"), 1, fh);
   int child_pid = fork();  // fork a duplicate process
-  int pid = getpid();
-  int child_ppid = getppid();  // get the child's parent pid
-  printf("child_pid:%d ppid:%d pid:%d\n", child_pid, child_ppid, pid);
-
   if (child_pid == 0) {
     // we are the child process (fork returns 0 in child)
+    // Do not printf here: child and parent share stdout; if the pipe to ctest is full,
+    // the child can block on printf and never reach execv, so the parent blocks in waitpid.
     // Clear LD_PRELOAD and tracer env so exec'd program (e.g. /bin/ls) does not
     // load the preload library; otherwise ls exit runs preload destructors and can block.
     unsetenv("LD_PRELOAD");
@@ -65,6 +63,9 @@ int main(int argc, char* argv[]) {
     // execv only returns on failure; exit without atexit/cleanup to avoid blocking
     _exit(127);
   }
+  int pid = getpid();
+  int child_ppid = getppid();
+  printf("child_pid:%d ppid:%d pid:%d\n", child_pid, child_ppid, pid);
   int status = -1;
   waitpid(child_pid, &status, WEXITED);
   fclose(fh);
