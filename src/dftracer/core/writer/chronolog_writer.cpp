@@ -72,15 +72,18 @@ void ChronologWriter::initialize(const char* filename) {
     return;
   }
 
-  // Handle fork scenario: reset if this is a child process
+  // Handle fork scenario: reset and do not connect in child. The child often
+  // exec()s immediately; connecting here can block (Connect/CreateChronicle/
+  // AcquireStory) and cause the test to time out. Child writes are no-ops
+  // (write() returns 0 when story_handle_ is null).
   if (client_ && init_pid_ != getpid()) {
     DFTRACER_LOG_INFO(
-        "ChronologWriter detected fork (Init PID: %d, Current PID: %d). Resetting for child process.",
+        "ChronologWriter detected fork (Init PID: %d, Current PID: %d). Resetting for child process (no connect).",
         init_pid_, getpid());
-    // Don't cleanup inherited pointers, just reset them
     client_ = nullptr;
     story_handle_ = nullptr;
     init_pid_ = getpid();
+    return;
   }
 
   try {
