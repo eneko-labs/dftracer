@@ -30,6 +30,9 @@ function(df_check_test test_name expected_count)
         set_tests_properties(check_${test_name} PROPERTIES FIXTURES_REQUIRED ${MOFKA_SERVER_FIXTURE})
         set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_MOFKA_GROUP_FILE=${MOFKA_GROUP_FILE})
         set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_MOFKA_TOPIC_NAME=${test_name})
+    elseif (DFTRACER_WRITER_TYPE_CHRONOLOG)
+        # ChronoLog writer sends to server; no local files to check. Run test only verifies process completed.
+        df_add_test(check_${test_name} ${BASH_EXE} -c "exit 0")
     else()
         if (${expected_count} EQUAL 0)
             df_add_test(check_${test_name} 
