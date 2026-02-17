@@ -25,17 +25,16 @@ python3 -m venv venv
 
 ## Run tests
 
-Point CMake at the venv’s Python so CTest uses it:
+Point CMake at the venv’s Python so CTest uses it. Use `python3` (Debian/Ubuntu venvs often do not have a `python` symlink):
 
 ```bash
 cd build
-cmake -DDFTRACER_PYTHON_EXE=../venv/bin/python ..
+cmake -DDFTRACER_PYTHON_EXE=../venv/bin/python3 ..
 make
 ctest --output-on-failure
 ```
 
-If the venv is activated, you can use:  
-`cmake -DDFTRACER_PYTHON_EXE=$(which python) ..`
+If you pass `../venv/bin/python` and it does not exist, CMake will use `../venv/bin/python3` automatically. Paths are resolved to absolute so CTest finds the executable.
 
 ## Without a venv (not recommended)
 
