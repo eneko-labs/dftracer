@@ -51,6 +51,15 @@ int main(int argc, char* argv[]) {
 
   if (child_pid == 0) {
     // we are the child process (fork returns 0 in child)
+    // Clear LD_PRELOAD and tracer env so exec'd program (e.g. /bin/ls) does not
+    // load the preload library; otherwise ls exit runs preload destructors and can block.
+    unsetenv("LD_PRELOAD");
+    unsetenv("DFTRACER_ENABLE");
+    unsetenv("DFTRACER_INIT");
+    unsetenv("DFTRACER_LOG_FILE");
+    unsetenv("DFTRACER_DATA_DIR");
+    unsetenv("DFTRACER_CHRONOLOG_HOST");
+    unsetenv("DFTRACER_CHRONOLOG_PORT");
     char* arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
     // execv only returns on failure; exit without atexit/cleanup to avoid blocking
