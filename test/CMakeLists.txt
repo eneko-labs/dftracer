@@ -96,6 +96,8 @@ function(set_common_properties test_name)
         set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_PORT=5555)
         set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_CHRONICLE_NAME=${test_name})
         set_property(TEST ${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_STORY_NAME=${test_name}_story)
+        # Prevent indefinite hang if ChronoVisor is not running (Connect() blocks)
+        set_tests_properties(${test_name} PROPERTIES TIMEOUT 60)
     endif()
 endfunction()
 
