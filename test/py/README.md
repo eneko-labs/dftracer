@@ -19,20 +19,24 @@ If a previous venv creation failed, remove it first: `rm -rf venv`
 ```bash
 # Create venv (once)
 python3 -m venv venv
-# Install test deps (no need to activate)
+# Install test deps and the dftracer package (provides dftracer.python, pydftracer)
 ./venv/bin/pip install -r test/py/requirements.txt
+./venv/bin/pip install -e .
 ```
 
 ## Run tests
 
-Point CMake at the venv’s Python so CTest uses it. Use `python3` (Debian/Ubuntu venvs often do not have a `python` symlink):
+Point CMake at the venv’s Python, build, install the built `.so` into the venv, then run CTest:
 
 ```bash
 cd build
 cmake -DDFTRACER_PYTHON_EXE=../venv/bin/python3 ..
 make
+make install
 ctest --output-on-failure
 ```
+
+`make install` symlinks the built Python extension into the venv’s site-packages so tests can import `dftracer`.
 
 If you pass `../venv/bin/python` and it does not exist, CMake will use `../venv/bin/python3` automatically. Paths are resolved to absolute so CTest finds the executable.
 
