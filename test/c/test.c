@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+extern char **environ;
+
 int bar();
 void foo() {
   DFTRACER_C_FUNCTION_START();
@@ -59,8 +61,10 @@ int main(int argc, char* argv[]) {
     unsetenv("DFTRACER_CHRONOLOG_HOST");
     unsetenv("DFTRACER_CHRONOLOG_PORT");
     char* arr[] = {"ls", "-l", NULL};
-    execv("/bin/ls", arr);
-    // execv only returns on failure; exit without atexit/cleanup to avoid blocking
+    // Use execve (not wrapped by preload) so the child does not block in tracer
+    // logging when preparing to exec; environ is already cleaned by unsetenv above.
+    execve("/bin/ls", arr, environ);
+    // execve only returns on failure; exit without atexit/cleanup to avoid blocking
     _exit(127);
   }
   int pid = getpid();
