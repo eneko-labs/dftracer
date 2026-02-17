@@ -189,12 +189,14 @@ void ChronologWriter::finalize(int index) {
   if (client_) {
     int ret = client_->Disconnect();
     if (ret != chronolog::CL_SUCCESS) {
-      DFTRACER_LOG_ERROR("Failed to disconnect: error code %d", ret);
+      DFTRACER_LOG_ERROR("Failed to disconnect: error code %d (skipping delete to avoid crash)", ret);
+      // Avoid delete client_ when Disconnect failed; destructor can corrupt heap (ChronoLog client bug).
+      client_ = nullptr;
     } else {
       DFTRACER_LOG_INFO("ChronoLog client disconnected", "");
+      delete client_;
+      client_ = nullptr;
     }
-    delete client_;
-    client_ = nullptr;
   }
 }
 
