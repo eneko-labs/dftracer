@@ -5,6 +5,10 @@
 # Requirements:
 #   - CHRONOLOG_INSTALL_DIR: ChronoLog install prefix (e.g. .../chronolog-install/chronolog).
 #     Recent ChronoLog installs include spdlog headers and libs, so this is usually enough.
+#   - CMAKE_PREFIX_PATH: prefix(es) where DFTracer deps are installed (cpp-logger, brahma,
+#     yaml-cpp, etc.). Example: export CMAKE_PREFIX_PATH=/path/to/dftracer-install
+#     If missing, build with -DDFTRACER_INSTALL_DEPENDENCIES=ON once to install deps, then
+#     reconfigure with CMAKE_PREFIX_PATH=<that-install-prefix>.
 #   - patchelf (e.g. apt install patchelf) for core RPATH handling.
 #
 # Optional (for older ChronoLog installs that do not ship spdlog):
@@ -123,7 +127,7 @@ cmake .. \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" \
   -DDFTRACER_WRITER_TYPE=CHRONOLOG \
   -DCHRONOLOG_INSTALL_DIR="$CHRONOLOG_INSTALL_DIR" \
-  -DFTRACER_ENABLE_TESTS=ON \
+  -DDFTRACER_ENABLE_TESTS=ON \
   "${CMAKE_EXTRA[@]}"
 
 cmake --build . -j$(nproc 2>/dev/null || echo 4)

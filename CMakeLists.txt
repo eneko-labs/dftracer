@@ -697,24 +697,18 @@ if (DFTRACER_BUILD_PYTHON_BINDINGS)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/$<TARGET_FILE_NAME:${PROJECT_NAME}> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}>;ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}>")
+    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}>;mkdir -p ${MAIN_PYTHON_SITE_PACKAGES}/dftracer && ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}> || echo '[DFTRACER] Python symlink skipped (use PYTHONPATH for install lib)'")
     install(CODE "execute_process(
-                COMMAND bash -c \"set -e
-                chmod +x ${CMAKE_BINARY_DIR}/symlink.sh
-                . ${CMAKE_BINARY_DIR}/symlink.sh
-                \")")
+                COMMAND bash -c \"chmod +x ${CMAKE_BINARY_DIR}/symlink.sh; . ${CMAKE_BINARY_DIR}/symlink.sh\")")
 
     install(
         TARGETS ${PROJECT_NAME}_dbg
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink_dbg.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg>;ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg>")
+    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink_dbg.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg>;mkdir -p ${MAIN_PYTHON_SITE_PACKAGES}/dftracer && ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> || echo '[DFTRACER] Python symlink skipped'")
     install(CODE "execute_process(
-                COMMAND bash -c \"set -e
-                chmod +x ${CMAKE_BINARY_DIR}/symlink_dbg.sh
-                . ${CMAKE_BINARY_DIR}/symlink_dbg.sh
-                \")")
+                COMMAND bash -c \"chmod +x ${CMAKE_BINARY_DIR}/symlink_dbg.sh; . ${CMAKE_BINARY_DIR}/symlink_dbg.sh\")")
 endif()
 
 if(DFTRACER_ENABLE_NATIVE_SCRIPT)
