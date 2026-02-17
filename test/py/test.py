@@ -1,18 +1,12 @@
 import argparse
 import os
-import sys
 import threading
 from multiprocessing import get_context
 from time import sleep
 
-try:
-    import h5py
-    import numpy as np
-    import PIL.Image as im
-except ImportError as e:
-    print("Skipping test: missing dependency", e, file=sys.stderr)
-    sys.exit(0)
-
+import h5py
+import numpy as np
+import PIL.Image as im
 from dftracer.python import dftracer, dft_fn
 import resource
 

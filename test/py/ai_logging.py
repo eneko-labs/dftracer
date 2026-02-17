@@ -1,13 +1,8 @@
 import argparse
 import os
-import sys
 from time import sleep
 
-try:
-    import numpy as np
-except ImportError as e:
-    print("Skipping test: missing dependency", e, file=sys.stderr)
-    sys.exit(0)
+import numpy as np
 
 from dftracer.python import dftracer, ai
 
