@@ -53,10 +53,8 @@ int main(int argc, char* argv[]) {
     // we are the child process (fork returns 0 in child)
     char* arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
-    if (init) {
-      DFTRACER_C_FINI();
-    }
-    return 0;
+    // execv only returns on failure; exit without atexit/cleanup to avoid blocking
+    _exit(127);
   }
   int status = -1;
   waitpid(child_pid, &status, WEXITED);
