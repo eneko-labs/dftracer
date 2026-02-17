@@ -103,11 +103,13 @@ void ChronologWriter::initialize(const char* filename) {
     DFTRACER_LOG_INFO("ChronoLog client connected", "");
 
     // Create chronicle
-    // Empty attrs and flags are fine - ChronoLog API accepts these for default behavior
+    // Empty attrs and flags are fine - ChronoLog API accepts these for default behavior.
+    // Accept CL_SUCCESS, CL_ERR_ACQUIRED, and -6 (chronicle already exists per visor).
     std::map<std::string, std::string> chronicle_attrs;
     int chronicle_flags = 0;
     ret = client_->CreateChronicle(chronicle_name_, chronicle_attrs, chronicle_flags);
-    if (ret != chronolog::CL_SUCCESS && ret != chronolog::CL_ERR_ACQUIRED) {
+    const int CL_ERR_CHRONICLE_EXISTS = -6;  // ChronoVisor: "A Chronicle with the same name already exists"
+    if (ret != chronolog::CL_SUCCESS && ret != chronolog::CL_ERR_ACQUIRED && ret != CL_ERR_CHRONICLE_EXISTS) {
       DFTRACER_LOG_ERROR("Failed to create chronicle '%s': error code %d", 
                         chronicle_name_.c_str(), ret);
       client_->Disconnect();
