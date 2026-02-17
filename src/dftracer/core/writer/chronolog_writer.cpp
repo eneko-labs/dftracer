@@ -180,44 +180,19 @@ void ChronologWriter::finalize(int index) {
     return;
   }
   
-  if (story_handle_) {
-    // Release story
-    if (client_) {
-      int ret = client_->ReleaseStory(chronicle_name_, story_name_);
-      if (ret != chronolog::CL_SUCCESS) {
-        DFTRACER_LOG_ERROR("Failed to release story: error code %d", ret);
-      } else {
-        DFTRACER_LOG_INFO("ChronoLog story released", "");
-      }
-      
-      // Destroy story
-      ret = client_->DestroyStory(chronicle_name_, story_name_);
-      if (ret != chronolog::CL_SUCCESS) {
-        DFTRACER_LOG_ERROR("Failed to destroy story: error code %d", ret);
-      } else {
-        DFTRACER_LOG_INFO("ChronoLog story destroyed", "");
-      }
-    }
-    story_handle_ = nullptr;
-  }
-  
+  // Clear story handle so we don't use it after teardown. Release/destroy can
+  // return -4 (e.g. already released by visor); calling them can leave the
+  // client in a bad state and trigger heap corruption on delete. So we only
+  // disconnect and delete the client; the visor cleans up on disconnect.
+  story_handle_ = nullptr;
+
   if (client_) {
-    // Destroy chronicle
-    int ret = client_->DestroyChronicle(chronicle_name_);
-    if (ret != chronolog::CL_SUCCESS) {
-      DFTRACER_LOG_ERROR("Failed to destroy chronicle: error code %d", ret);
-    } else {
-      DFTRACER_LOG_INFO("ChronoLog chronicle destroyed", "");
-    }
-    
-    // Disconnect
-    ret = client_->Disconnect();
+    int ret = client_->Disconnect();
     if (ret != chronolog::CL_SUCCESS) {
       DFTRACER_LOG_ERROR("Failed to disconnect: error code %d", ret);
     } else {
       DFTRACER_LOG_INFO("ChronoLog client disconnected", "");
     }
-    
     delete client_;
     client_ = nullptr;
   }
