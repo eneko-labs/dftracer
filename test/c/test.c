@@ -49,8 +49,8 @@ int main(int argc, char* argv[]) {
   int child_ppid = getppid();  // get the child's parent pid
   printf("child_pid:%d ppid:%d pid:%d\n", child_pid, child_ppid, pid);
 
-  if (child_ppid == pid) {
-    // if the current process is a child of the main process
+  if (child_pid == 0) {
+    // we are the child process (fork returns 0 in child)
     char* arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
     if (init) {
