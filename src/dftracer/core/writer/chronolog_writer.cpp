@@ -183,10 +183,15 @@ void ChronologWriter::finalize(int index) {
     return;
   }
   
-  // Clear story handle so we don't use it after teardown. Release/destroy can
-  // return -4 (e.g. already released by visor); calling them can leave the
-  // client in a bad state and trigger heap corruption on delete. So we only
-  // disconnect and delete the client; the visor cleans up on disconnect.
+  // Release the story before disconnect so the visor doesn't report CL_ERR_ACQUIRED,
+  // and so readers can replay (story no longer held by this client).
+  if (client_ && !chronicle_name_.empty() && !story_name_.empty()) {
+    int rel = client_->ReleaseStory(chronicle_name_, story_name_);
+    if (rel != chronolog::CL_SUCCESS) {
+      DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d (continuing to disconnect)",
+                         story_name_.c_str(), rel);
+    }
+  }
   story_handle_ = nullptr;
 
   if (client_) {

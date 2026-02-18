@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
 #include <thread>
 #include <vector>
@@ -100,6 +101,17 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  // Some ChronoLog setups require the story to be acquired before ReplayStory (-5 NOT_ACQUIRED otherwise).
+  int story_flags = 0;
+  std::map<std::string, std::string> story_attrs;
+  auto acquire_result = client->AcquireStory(chronicle_name, story_name, story_attrs, story_flags);
+  if (acquire_result.first != chronolog::CL_SUCCESS) {
+    std::cerr << "ChronoLog reader: AcquireStory failed: " << acquire_result.first << std::endl;
+    client->Disconnect();
+    delete client;
+    return 1;
+  }
+
   std::ostream* out = &std::cout;
   std::ofstream out_file;
   if (!output_path.empty()) {
@@ -147,6 +159,7 @@ int main(int argc, char* argv[]) {
     out_file.close();
   }
 
+  client->ReleaseStory(chronicle_name, story_name);
   client->Disconnect();
   delete client;
 
