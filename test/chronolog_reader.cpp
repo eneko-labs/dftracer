@@ -166,17 +166,17 @@ int main(int argc, char* argv[]) {
           play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
         }
       }
-      if (play_ret == chronolog::CL_ERR_QUERY_TIMED_OUT && max_wait_on_not_acquired_sec > 0) {
-        auto retry_start = std::chrono::steady_clock::now();
-        auto max_wait = std::chrono::seconds(max_wait_on_not_acquired_sec);
+      if (play_ret == chronolog::CL_ERR_QUERY_TIMED_OUT) {
+        // Each ReplayStory call has a 180s internal ChronoLog timeout, so time-based
+        // retry doesn't work (elapsed >> max_wait after just one attempt). Use count-based.
+        const int max_timed_out_retries = 5;  // up to ~15 min total (5 × 180s)
+        int timed_out_retries = 0;
         while (play_ret == chronolog::CL_ERR_QUERY_TIMED_OUT &&
-               (std::chrono::steady_clock::now() - retry_start) < max_wait) {
-          int elapsed_sec = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
-              std::chrono::steady_clock::now() - retry_start).count());
+               timed_out_retries < max_timed_out_retries) {
+          timed_out_retries++;
           std::cerr << "ChronoLog reader: ReplayStory returned -12 (QUERY_TIMED_OUT), "
-                       "data not yet persisted; retrying in " << (retry_sleep_ms / 1000) << "s "
-                    << "(elapsed " << elapsed_sec << "s / max " << max_wait_on_not_acquired_sec
-                    << "s)..." << std::endl;
+                       "data not yet persisted by ChronoPlayer; retrying (attempt "
+                    << timed_out_retries << "/" << max_timed_out_retries << ")..." << std::endl;
           std::this_thread::sleep_for(std::chrono::milliseconds(retry_sleep_ms));
           playback_events.clear();
           play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);

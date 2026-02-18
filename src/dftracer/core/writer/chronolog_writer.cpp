@@ -186,12 +186,20 @@ void ChronologWriter::finalize(int index) {
   // Writer must release the story so the reader can acquire and replay.
   story_handle_ = nullptr;
   if (client_ && !chronicle_name_.empty() && !story_name_.empty()) {
-    int rel = client_->ReleaseStory(chronicle_name_, story_name_);
-    if (rel == chronolog::CL_SUCCESS) {
-      DFTRACER_LOG_INFO("ChronoLog story released", "");
-    } else {
-      DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d",
-                         story_name_.c_str(), rel);
+    // ReleaseStory can throw std::system_error (EDEADLK) during Thallium teardown.
+    // Wrap so _exit(0) is always reached regardless.
+    try {
+      int rel = client_->ReleaseStory(chronicle_name_, story_name_);
+      if (rel == chronolog::CL_SUCCESS) {
+        DFTRACER_LOG_INFO("ChronoLog story released", "");
+      } else {
+        DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d",
+                           story_name_.c_str(), rel);
+      }
+    } catch (const std::exception& e) {
+      DFTRACER_LOG_ERROR("ReleaseStory threw: %s (ignoring, exiting)", e.what());
+    } catch (...) {
+      DFTRACER_LOG_ERROR("ReleaseStory threw unknown exception (ignoring, exiting)", "");
     }
     // Always exit immediately: ChronoLog client teardown (Disconnect/delete) triggers
     // Thallium heap corruption. _exit(0) skips destructors safely.
