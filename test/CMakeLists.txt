@@ -31,8 +31,17 @@ function(df_check_test test_name expected_count)
         set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_MOFKA_GROUP_FILE=${MOFKA_GROUP_FILE})
         set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_MOFKA_TOPIC_NAME=${test_name})
     elseif (DFTRACER_WRITER_TYPE_CHRONOLOG)
-        # ChronoLog writer sends to server; no local files to check. Run test only verifies process completed.
-        df_add_test(check_${test_name} ${BASH_EXE} -c "exit 0")
+        # ChronoLog reader polls story via playback_story() and writes events to a temp file; check script counts lines.
+        df_add_test(check_${test_name}
+            ${DFTRACER_PYTHON_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/check_chronolog_topic.py
+            $<TARGET_FILE:dftracer_chronolog_reader> ${expected_count})
+        set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_HOST=127.0.0.1)
+        set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_PORT=5555)
+        set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_CHRONICLE_NAME=${test_name})
+        set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT DFTRACER_CHRONOLOG_STORY_NAME=${test_name}_story)
+        if(DEFINED CHRONOLOG_INSTALL_DIR)
+            set_property(TEST check_${test_name} APPEND PROPERTY ENVIRONMENT "LD_LIBRARY_PATH=${CHRONOLOG_INSTALL_DIR}/lib:$ENV{LD_LIBRARY_PATH}")
+        endif()
     else()
         if (${expected_count} EQUAL 0)
             df_add_test(check_${test_name} 

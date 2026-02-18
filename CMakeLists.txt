@@ -486,6 +486,13 @@ if(DFTRACER_WRITER_TYPE_CHRONOLOG)
     # so targets that link to core (e.g. dftracer_service) do not inherit it and the
     # linker does not pull in ChronoLog's transitive deps (libibverbs, librdmacm, libnl).
     message(STATUS "[DFTRACER] ChronoLog writer backend enabled")
+
+    # ChronoLog reader tool: polls story via playback_story() and writes events to file/stdout.
+    add_executable(dftracer_chronolog_reader ${CMAKE_CURRENT_SOURCE_DIR}/test/chronolog_reader.cpp)
+    if(DEFINED CHRONOLOG_INSTALL_DIR)
+        target_include_directories(dftracer_chronolog_reader PRIVATE ${CHRONOLOG_INSTALL_DIR}/include)
+    endif()
+    target_link_libraries(dftracer_chronolog_reader PRIVATE ${CHRONOLOG_CLIENT_LIB})
 endif()
 
 set(DEPENDENCY_LIB_FOR_EXECUTABLES ${DEPENDENCY_LIB})
@@ -605,7 +612,7 @@ endif()
 # only); install uses INSTALL_RPATH which includes ChronoLog.
 if(DFTRACER_WRITER_TYPE_CHRONOLOG AND DEFINED CHRONOLOG_INSTALL_DIR)
     set(_chronolog_lib_dir "${CHRONOLOG_INSTALL_DIR}/lib")
-    foreach(_tgt ${PROJECT_NAME}_core ${PROJECT_NAME}_core_dbg ${PROJECT_NAME}_preload ${PROJECT_NAME}_preload_dbg)
+    foreach(_tgt ${PROJECT_NAME}_core ${PROJECT_NAME}_core_dbg ${PROJECT_NAME}_preload ${PROJECT_NAME}_preload_dbg dftracer_chronolog_reader)
         set_target_properties(${_tgt} PROPERTIES
             INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
     endforeach()
@@ -688,6 +695,12 @@ install(
     ARCHIVE DESTINATION ${DFTRACER_INSTALL_LIB_DIR}
     RUNTIME DESTINATION ${DFTRACER_INSTALL_BIN_DIR}
 )
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    install(
+        TARGETS dftracer_chronolog_reader
+        RUNTIME DESTINATION ${DFTRACER_INSTALL_BIN_DIR}
+    )
+endif()
 install(TARGETS ${PROJECT_NAME}_preload
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
