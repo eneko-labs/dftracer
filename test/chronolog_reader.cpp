@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
     }
 
     for (const auto& ev : playback_events) {
-      const std::string& record = ev.log_record();
+      std::string record = ev.log_record();  // copy; don't hold reference across iterations
       if (!record.empty()) {
         *out << record;
         if (record.back() != '\n') *out << '\n';
@@ -201,10 +201,9 @@ int main(int argc, char* argv[]) {
     out_file.close();
   }
 
-  // Do NOT call ReleaseStory before Disconnect: it can trigger heap corruption
-  // in the ChronoLog client (free(): corrupted unsorted chunks). Disconnect as-is.
-  client->Disconnect();
-  delete client;
-
-  return 0;
+  // Release the story before Disconnect to avoid "Resource deadlock avoided" (EDEADLK)
+  // during client teardown. Then exit without Disconnect/delete to avoid ChronoLog
+  // client heap corruption (same workaround as the writer).
+  client->ReleaseStory(chronicle_name, story_name);
+  _exit(0);
 }
