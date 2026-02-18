@@ -1,14 +1,16 @@
 /**
  * ChronoLog reader tool for DFTracer.
  *
- * ChronoLog does not use pub/sub; this tool polls the story via playback_story()
- * in a loop and writes events to a file (or stdout). Use for tests and for
- * draining trace data into a .pfw file for DFAnalyzer/Perfetto.
+ * ChronoLog does not use pub/sub; this tool polls the story via Client::ReplayStory()
+ * in a loop and writes events to a file (or stdout). The client must be
+ * constructed in reader mode (ClientPortalServiceConf + ClientQueryServiceConf).
+ * Use for tests and for draining trace data into a .pfw file for DFAnalyzer/Perfetto.
  *
- * Environment variables (same as ChronologWriter):
+ * Environment variables (portal = writer connection, query = replay service):
  *   DFTRACER_CHRONOLOG_PROTOCOL, DFTRACER_CHRONOLOG_HOST, DFTRACER_CHRONOLOG_PORT
  *   DFTRACER_CHRONOLOG_PROVIDER_ID, DFTRACER_CHRONOLOG_CHRONICLE_NAME,
  *   DFTRACER_CHRONOLOG_STORY_NAME
+ *   DFTRACER_CHRONOLOG_QUERY_HOST, DFTRACER_CHRONOLOG_QUERY_PORT (default: same host, 5557)
  */
 
 #include <chronolog_client.h>
@@ -73,14 +75,24 @@ int main(int argc, char* argv[]) {
   uint16_t provider_id = getenv_provider_id("DFTRACER_CHRONOLOG_PROVIDER_ID", 55);
   std::string chronicle_name = getenv_default("DFTRACER_CHRONOLOG_CHRONICLE_NAME", "dftracer_chronicle");
   std::string story_name = getenv_default("DFTRACER_CHRONOLOG_STORY_NAME", "dftracer_story");
+  std::string query_host = getenv_default("DFTRACER_CHRONOLOG_QUERY_HOST", host.c_str());
+  uint16_t query_port = getenv_port("DFTRACER_CHRONOLOG_QUERY_PORT", 5557);
+  uint16_t query_provider_id = getenv_provider_id("DFTRACER_CHRONOLOG_QUERY_PROVIDER_ID", 57);
 
-  chronolog::ClientPortalServiceConf conf;
-  conf.PROTO_CONF = protocol;
-  conf.IP = host;
-  conf.PORT = port;
-  conf.PROVIDER_ID = provider_id;
+  chronolog::ClientPortalServiceConf portal_conf;
+  portal_conf.PROTO_CONF = protocol;
+  portal_conf.IP = host;
+  portal_conf.PORT = port;
+  portal_conf.PROVIDER_ID = provider_id;
 
-  chronolog::Client* client = new chronolog::Client(conf);
+  chronolog::ClientQueryServiceConf query_conf;
+  query_conf.PROTO_CONF = protocol;
+  query_conf.IP = query_host;
+  query_conf.PORT = query_port;
+  query_conf.PROVIDER_ID = query_provider_id;
+
+  // Reader mode: two-argument constructor for producing and consuming events
+  chronolog::Client* client = new chronolog::Client(portal_conf, query_conf);
   int ret = client->Connect();
   if (ret != chronolog::CL_SUCCESS) {
     std::cerr << "ChronoLog reader: Connect failed: " << ret << std::endl;
@@ -88,24 +100,12 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::map<std::string, std::string> story_attrs;
-  int story_flags = 0;
-  auto story_result = client->AcquireStory(chronicle_name, story_name, story_attrs, story_flags);
-  if (story_result.first != chronolog::CL_SUCCESS) {
-    std::cerr << "ChronoLog reader: AcquireStory failed: " << story_result.first << std::endl;
-    client->Disconnect();
-    delete client;
-    return 1;
-  }
-  chronolog::StoryHandle* story_handle = story_result.second;
-
   std::ostream* out = &std::cout;
   std::ofstream out_file;
   if (!output_path.empty()) {
     out_file.open(output_path, std::ios::out | std::ios::app);
     if (!out_file) {
       std::cerr << "ChronoLog reader: cannot open output file: " << output_path << std::endl;
-      client->ReleaseStory(chronicle_name, story_name);
       client->Disconnect();
       delete client;
       return 1;
@@ -115,14 +115,13 @@ int main(int argc, char* argv[]) {
 
   uint64_t start_ts = 0;
   const uint64_t end_ts_max = UINT64_MAX;  // request up to latest available
-  int total_events = 0;
 
   do {
     std::vector<chronolog::Event> playback_events;
-    int play_ret = story_handle->playback_story(start_ts, end_ts_max, playback_events);
+    int play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
 
-    if (play_ret != chronolog::CL_SUCCESS && play_ret != chronolog::CL_ERR_OUT_OF_RANGE) {
-      std::cerr << "ChronoLog reader: playback_story failed: " << play_ret << std::endl;
+    if (play_ret != chronolog::CL_SUCCESS) {
+      std::cerr << "ChronoLog reader: ReplayStory failed: " << play_ret << std::endl;
       break;
     }
 
@@ -131,7 +130,6 @@ int main(int argc, char* argv[]) {
       if (!record.empty()) {
         *out << record;
         if (record.back() != '\n') *out << '\n';
-        total_events++;
       }
       uint64_t t = ev.time();
       if (t >= start_ts) start_ts = t + 1;
@@ -149,12 +147,8 @@ int main(int argc, char* argv[]) {
     out_file.close();
   }
 
-  client->ReleaseStory(chronicle_name, story_name);
   client->Disconnect();
   delete client;
 
-  if (once && output_path.empty()) {
-    /* When --once and stdout, nothing to report; exit 0. */
-  }
   return 0;
 }
