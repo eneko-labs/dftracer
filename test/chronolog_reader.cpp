@@ -18,7 +18,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <string>
 #include <thread>
 #include <vector>
@@ -51,6 +50,7 @@ static uint16_t getenv_provider_id(const char* name, uint16_t default_val) {
 int main(int argc, char* argv[]) {
   bool once = false;
   double poll_interval_sec = 1.0;
+  int delay_before_first_replay_sec = 0;
   std::string output_path;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -58,14 +58,18 @@ int main(int argc, char* argv[]) {
       once = true;
     } else if (arg == "--poll-interval" && i + 1 < argc) {
       poll_interval_sec = std::stod(argv[++i]);
+    } else if (arg == "--delay" && i + 1 < argc) {
+      int d = std::stoi(argv[++i]);
+      delay_before_first_replay_sec = (d > 0) ? d : 0;
     } else if (arg == "--output" && i + 1 < argc) {
       output_path = argv[++i];
     } else if (arg == "--help" || arg == "-h") {
       std::cerr << "Usage: " << argv[0]
-                << " [--once] [--output FILE] [--poll-interval SEC]\n"
+                << " [--once] [--output FILE] [--poll-interval SEC] [--delay SEC]\n"
                 << "  --once           Read once and exit (default: loop forever).\n"
                 << "  --output FILE    Write events to FILE (default: stdout).\n"
-                << "  --poll-interval  Seconds between polls (default: 1.0).\n";
+                << "  --poll-interval  Seconds between polls (default: 1.0).\n"
+                << "  --delay SEC      Wait SEC seconds before first ReplayStory (default: 0).\n";
       return 0;
     }
   }
@@ -101,16 +105,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // Some ChronoLog setups require the story to be acquired before ReplayStory (-5 NOT_ACQUIRED otherwise).
-  int story_flags = 0;
-  std::map<std::string, std::string> story_attrs;
-  auto acquire_result = client->AcquireStory(chronicle_name, story_name, story_attrs, story_flags);
-  if (acquire_result.first != chronolog::CL_SUCCESS) {
-    std::cerr << "ChronoLog reader: AcquireStory failed: " << acquire_result.first << std::endl;
-    client->Disconnect();
-    delete client;
-    return 1;
-  }
+  // Do not AcquireStory: the writer exits without releasing (to avoid ChronoLog client heap
+  // corruption). ReplayStory can return -5 (NOT_ACQUIRED) until the visor treats the writer as
+  // gone; we retry with short delays.
 
   std::ostream* out = &std::cout;
   std::ofstream out_file;
@@ -127,14 +124,36 @@ int main(int argc, char* argv[]) {
 
   uint64_t start_ts = 0;
   const uint64_t end_ts_max = UINT64_MAX;  // request up to latest available
+  const int max_retries_on_not_acquired = 10;  // -5 can occur until writer session is gone
+  const int retry_sleep_ms = 2000;
+
+  if (delay_before_first_replay_sec > 0) {
+    std::cerr << "ChronoLog reader: waiting " << delay_before_first_replay_sec
+              << "s before first ReplayStory..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(delay_before_first_replay_sec));
+  }
 
   do {
     std::vector<chronolog::Event> playback_events;
     int play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
 
     if (play_ret != chronolog::CL_SUCCESS) {
-      std::cerr << "ChronoLog reader: ReplayStory failed: " << play_ret << std::endl;
-      break;
+      if (play_ret == chronolog::CL_ERR_NOT_ACQUIRED && max_retries_on_not_acquired > 0) {
+        int tried = 0;
+        while (play_ret == chronolog::CL_ERR_NOT_ACQUIRED && tried < max_retries_on_not_acquired) {
+          std::cerr << "ChronoLog reader: ReplayStory returned -5 (NOT_ACQUIRED), retrying in "
+                    << (retry_sleep_ms / 1000) << "s (" << (tried + 1) << "/" << max_retries_on_not_acquired << ")..."
+                    << std::endl;
+          std::this_thread::sleep_for(std::chrono::milliseconds(retry_sleep_ms));
+          playback_events.clear();
+          play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
+          tried++;
+        }
+      }
+      if (play_ret != chronolog::CL_SUCCESS) {
+        std::cerr << "ChronoLog reader: ReplayStory failed: " << play_ret << std::endl;
+        break;
+      }
     }
 
     for (const auto& ev : playback_events) {
