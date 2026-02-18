@@ -183,16 +183,21 @@ void ChronologWriter::finalize(int index) {
     return;
   }
   
-  // Do NOT call ReleaseStory here: it can leave the ChronoLog client in a bad state
-  // and trigger heap corruption on delete (free(): corrupted unsorted chunks).
-  // Disconnect will report -4 (CL_ERR_ACQUIRED) but we avoid crash.
+  // Writer must release the story so the reader can acquire and replay.
   story_handle_ = nullptr;
+  if (client_ && !chronicle_name_.empty() && !story_name_.empty()) {
+    int rel = client_->ReleaseStory(chronicle_name_, story_name_);
+    if (rel != chronolog::CL_SUCCESS) {
+      DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d", story_name_.c_str(), rel);
+    } else {
+      DFTRACER_LOG_INFO("ChronoLog story released", "");
+    }
+  }
 
   if (client_) {
     int ret = client_->Disconnect();
     if (ret != chronolog::CL_SUCCESS) {
       DFTRACER_LOG_ERROR("Failed to disconnect: error code %d (skipping delete to avoid crash)", ret);
-      // Avoid delete client_ when Disconnect failed; destructor can corrupt heap (ChronoLog client bug).
       client_ = nullptr;
     } else {
       DFTRACER_LOG_INFO("ChronoLog client disconnected", "");

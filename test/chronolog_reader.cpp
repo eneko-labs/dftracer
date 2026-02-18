@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
 #include <thread>
 #include <vector>
@@ -98,7 +99,8 @@ int main(int argc, char* argv[]) {
   query_conf.PORT = query_port;
   query_conf.PROVIDER_ID = query_provider_id;
 
-  // Reader mode: two-argument constructor for producing and consuming events
+  // Reader mode: two-argument constructor (portal + query) so the client can consume events.
+  // Writing-only clients use the single-argument constructor; readers use this.
   chronolog::Client* client = new chronolog::Client(portal_conf, query_conf);
   int ret = client->Connect();
   if (ret != chronolog::CL_SUCCESS) {
@@ -107,9 +109,17 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  // Do not AcquireStory: the writer exits without releasing (to avoid ChronoLog client heap
-  // corruption). ReplayStory can return -5 (NOT_ACQUIRED) until the visor treats the writer as
-  // gone; we retry with short delays.
+  // Reader must acquire the story before ReplayStory (writer releases the story when done).
+  int story_flags = 0;
+  std::map<std::string, std::string> story_attrs;
+  auto acquire_result = client->AcquireStory(chronicle_name, story_name, story_attrs, story_flags);
+  if (acquire_result.first != chronolog::CL_SUCCESS) {
+    std::cerr << "ChronoLog reader: AcquireStory failed: " << acquire_result.first
+              << " (ensure the writer has released the story)" << std::endl;
+    client->Disconnect();
+    delete client;
+    return 1;
+  }
 
   std::ostream* out = &std::cout;
   std::ofstream out_file;
