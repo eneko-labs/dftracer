@@ -159,7 +159,8 @@ int main(int argc, char* argv[]) {
     out_file.close();
   }
 
-  client->ReleaseStory(chronicle_name, story_name);
+  // Do NOT call ReleaseStory before Disconnect: it can trigger heap corruption
+  // in the ChronoLog client (free(): corrupted unsorted chunks). Disconnect as-is.
   client->Disconnect();
   delete client;
 

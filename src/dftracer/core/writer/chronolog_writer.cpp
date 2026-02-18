@@ -183,15 +183,9 @@ void ChronologWriter::finalize(int index) {
     return;
   }
   
-  // Release the story before disconnect so the visor doesn't report CL_ERR_ACQUIRED,
-  // and so readers can replay (story no longer held by this client).
-  if (client_ && !chronicle_name_.empty() && !story_name_.empty()) {
-    int rel = client_->ReleaseStory(chronicle_name_, story_name_);
-    if (rel != chronolog::CL_SUCCESS) {
-      DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d (continuing to disconnect)",
-                         story_name_.c_str(), rel);
-    }
-  }
+  // Do NOT call ReleaseStory here: it can leave the ChronoLog client in a bad state
+  // and trigger heap corruption on delete (free(): corrupted unsorted chunks).
+  // Disconnect will report -4 (CL_ERR_ACQUIRED) but we avoid crash.
   story_handle_ = nullptr;
 
   if (client_) {
