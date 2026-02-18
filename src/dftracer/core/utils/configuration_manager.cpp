@@ -396,6 +396,12 @@ dftracer::ConfigurationManager::ConfigurationManager()
       this->compression = false;
     }
   }
+#if DFTRACER_WRITER_TYPE_CHRONOLOG
+  if (this->compression) {
+    DFTRACER_LOG_WARN("Compression is not supported for ChronoLog writer", "");
+    this->compression = false;
+  }
+#endif
   derive_configurations();
   DFTRACER_LOG_DEBUG("ENV ConfigurationManager finished", "");
 }

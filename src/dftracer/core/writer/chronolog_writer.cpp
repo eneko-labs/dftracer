@@ -189,24 +189,15 @@ void ChronologWriter::finalize(int index) {
     int rel = client_->ReleaseStory(chronicle_name_, story_name_);
     if (rel == chronolog::CL_SUCCESS) {
       DFTRACER_LOG_INFO("ChronoLog story released", "");
-      // Exit immediately to avoid Disconnect/delete; ChronoLog client teardown can trigger
-      // heap corruption (free(): corrupted unsorted chunks). _exit(0) skips destructors.
-      _exit(0);
-    }
-    DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d", story_name_.c_str(), rel);
-  }
-
-  if (client_) {
-    int ret = client_->Disconnect();
-    if (ret != chronolog::CL_SUCCESS) {
-      DFTRACER_LOG_ERROR("Failed to disconnect: error code %d (skipping delete to avoid crash)", ret);
-      client_ = nullptr;
     } else {
-      DFTRACER_LOG_INFO("ChronoLog client disconnected", "");
-      delete client_;
-      client_ = nullptr;
+      DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d",
+                         story_name_.c_str(), rel);
     }
+    // Always exit immediately: ChronoLog client teardown (Disconnect/delete) triggers
+    // Thallium heap corruption. _exit(0) skips destructors safely.
+    _exit(0);
   }
+  // client_ is null → nothing to clean up (child process path already returned above)
 }
 
 }  // namespace dftracer

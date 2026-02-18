@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
   std::ostream* out = &std::cout;
   std::ofstream out_file;
   if (!output_path.empty()) {
-    out_file.open(output_path, std::ios::out | std::ios::app);
+    out_file.open(output_path, std::ios::out | std::ios::trunc);
     if (!out_file) {
       std::cerr << "ChronoLog reader: cannot open output file: " << output_path << std::endl;
       client->Disconnect();
@@ -160,6 +160,22 @@ int main(int argc, char* argv[]) {
           std::cerr << "ChronoLog reader: ReplayStory returned -5 (NOT_ACQUIRED), retrying in "
                     << (retry_sleep_ms / 1000) << "s (elapsed " << elapsed_sec << "s / max "
                     << max_wait_on_not_acquired_sec << "s)..." << std::endl;
+          std::this_thread::sleep_for(std::chrono::milliseconds(retry_sleep_ms));
+          playback_events.clear();
+          play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
+        }
+      }
+      if (play_ret == chronolog::CL_ERR_QUERY_TIMED_OUT && max_wait_on_not_acquired_sec > 0) {
+        auto retry_start = std::chrono::steady_clock::now();
+        auto max_wait = std::chrono::seconds(max_wait_on_not_acquired_sec);
+        while (play_ret == chronolog::CL_ERR_QUERY_TIMED_OUT &&
+               (std::chrono::steady_clock::now() - retry_start) < max_wait) {
+          int elapsed_sec = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+              std::chrono::steady_clock::now() - retry_start).count());
+          std::cerr << "ChronoLog reader: ReplayStory returned -12 (QUERY_TIMED_OUT), "
+                       "data not yet persisted; retrying in " << (retry_sleep_ms / 1000) << "s "
+                    << "(elapsed " << elapsed_sec << "s / max " << max_wait_on_not_acquired_sec
+                    << "s)..." << std::endl;
           std::this_thread::sleep_for(std::chrono::milliseconds(retry_sleep_ms));
           playback_events.clear();
           play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
@@ -204,6 +220,15 @@ int main(int argc, char* argv[]) {
   // Release the story before Disconnect to avoid "Resource deadlock avoided" (EDEADLK)
   // during client teardown. Then exit without Disconnect/delete to avoid ChronoLog
   // client heap corruption (same workaround as the writer).
-  client->ReleaseStory(chronicle_name, story_name);
+  // Wrap to ensure _exit(0) is always reached even if ReleaseStory throws EDEADLK.
+  try {
+    client->ReleaseStory(chronicle_name, story_name);
+  } catch (const std::exception& e) {
+    std::cerr << "ChronoLog reader: ReleaseStory threw: " << e.what()
+              << " (ignoring, exiting)" << std::endl;
+  } catch (...) {
+    std::cerr << "ChronoLog reader: ReleaseStory threw unknown exception (ignoring, exiting)"
+              << std::endl;
+  }
   _exit(0);
 }
