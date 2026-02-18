@@ -10,7 +10,7 @@
  *   DFTRACER_CHRONOLOG_PROTOCOL, DFTRACER_CHRONOLOG_HOST, DFTRACER_CHRONOLOG_PORT
  *   DFTRACER_CHRONOLOG_PROVIDER_ID, DFTRACER_CHRONOLOG_CHRONICLE_NAME,
  *   DFTRACER_CHRONOLOG_STORY_NAME
- *   DFTRACER_CHRONOLOG_QUERY_HOST, DFTRACER_CHRONOLOG_QUERY_PORT (default: same host and port as portal)
+ *   DFTRACER_CHRONOLOG_QUERY_HOST, DFTRACER_CHRONOLOG_QUERY_PORT (default: same host, port 5557)
  */
 
 #include <chronolog_client.h>
@@ -82,9 +82,8 @@ int main(int argc, char* argv[]) {
   std::string chronicle_name = getenv_default("DFTRACER_CHRONOLOG_CHRONICLE_NAME", "dftracer_chronicle");
   std::string story_name = getenv_default("DFTRACER_CHRONOLOG_STORY_NAME", "dftracer_story");
   std::string query_host = getenv_default("DFTRACER_CHRONOLOG_QUERY_HOST", host.c_str());
-  // Default query port to same as portal (5555) so single-port ChronoLog deployments work.
-  // Set DFTRACER_CHRONOLOG_QUERY_PORT=5557 if your deployment uses a separate query service.
-  uint16_t query_port = getenv_port("DFTRACER_CHRONOLOG_QUERY_PORT", port);
+  // Query service must be on a different port than the portal; same port causes hg_class init failure and crash.
+  uint16_t query_port = getenv_port("DFTRACER_CHRONOLOG_QUERY_PORT", 5557);
   uint16_t query_provider_id = getenv_provider_id("DFTRACER_CHRONOLOG_QUERY_PROVIDER_ID", 57);
 
   chronolog::ClientPortalServiceConf portal_conf;
@@ -161,12 +160,10 @@ int main(int argc, char* argv[]) {
         if (play_ret == chronolog::CL_ERR_NOT_ACQUIRED) {
           std::cerr << "  (NOT_ACQUIRED) The writer exits without releasing the story to avoid a "
                     << "ChronoLog client bug; the visor may keep the story acquired.\n"
-                    << "  Options: (1) Ensure the ChronoLog query service is running. If using a "
-                    << "separate port, set DFTRACER_CHRONOLOG_QUERY_PORT=5557.\n"
-                    << "  (2) If your deployment uses a single port, leave QUERY_PORT unset (reader "
-                    << "uses portal port " << static_cast<int>(port) << ").\n"
-                    << "  (3) Contact ChronoLog maintainers for how to replay when the writer did "
-                    << "not call ReleaseStory." << std::endl;
+                    << "  Ensure the ChronoLog query service is running on port " << static_cast<int>(query_port)
+                    << " (DFTRACER_CHRONOLOG_QUERY_PORT). Replay requires the query service; "
+                    << "contact ChronoLog maintainers for deployment that supports replay when the "
+                    << "writer did not call ReleaseStory." << std::endl;
         }
         break;
       }
