@@ -15,6 +15,7 @@
 
 #include <chronolog_client.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -124,7 +125,7 @@ int main(int argc, char* argv[]) {
 
   uint64_t start_ts = 0;
   const uint64_t end_ts_max = UINT64_MAX;  // request up to latest available
-  const int max_retries_on_not_acquired = 10;  // -5 can occur until writer session is gone
+  const int max_wait_on_not_acquired_sec = 150;  // keep retrying -5 for up to this long (writer may take ~2 min)
   const int retry_sleep_ms = 2000;
 
   if (delay_before_first_replay_sec > 0) {
@@ -138,16 +139,19 @@ int main(int argc, char* argv[]) {
     int play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
 
     if (play_ret != chronolog::CL_SUCCESS) {
-      if (play_ret == chronolog::CL_ERR_NOT_ACQUIRED && max_retries_on_not_acquired > 0) {
-        int tried = 0;
-        while (play_ret == chronolog::CL_ERR_NOT_ACQUIRED && tried < max_retries_on_not_acquired) {
+      if (play_ret == chronolog::CL_ERR_NOT_ACQUIRED && max_wait_on_not_acquired_sec > 0) {
+        auto retry_start = std::chrono::steady_clock::now();
+        auto max_wait = std::chrono::seconds(max_wait_on_not_acquired_sec);
+        while (play_ret == chronolog::CL_ERR_NOT_ACQUIRED &&
+               (std::chrono::steady_clock::now() - retry_start) < max_wait) {
+          int elapsed_sec = static_cast<int>(std::chrono::duration_cast<std::chrono::seconds>(
+              std::chrono::steady_clock::now() - retry_start).count());
           std::cerr << "ChronoLog reader: ReplayStory returned -5 (NOT_ACQUIRED), retrying in "
-                    << (retry_sleep_ms / 1000) << "s (" << (tried + 1) << "/" << max_retries_on_not_acquired << ")..."
-                    << std::endl;
+                    << (retry_sleep_ms / 1000) << "s (elapsed " << elapsed_sec << "s / max "
+                    << max_wait_on_not_acquired_sec << "s)..." << std::endl;
           std::this_thread::sleep_for(std::chrono::milliseconds(retry_sleep_ms));
           playback_events.clear();
           play_ret = client->ReplayStory(chronicle_name, story_name, start_ts, end_ts_max, playback_events);
-          tried++;
         }
       }
       if (play_ret != chronolog::CL_SUCCESS) {
