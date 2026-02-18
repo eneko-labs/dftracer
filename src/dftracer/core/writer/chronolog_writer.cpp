@@ -187,11 +187,13 @@ void ChronologWriter::finalize(int index) {
   story_handle_ = nullptr;
   if (client_ && !chronicle_name_.empty() && !story_name_.empty()) {
     int rel = client_->ReleaseStory(chronicle_name_, story_name_);
-    if (rel != chronolog::CL_SUCCESS) {
-      DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d", story_name_.c_str(), rel);
-    } else {
+    if (rel == chronolog::CL_SUCCESS) {
       DFTRACER_LOG_INFO("ChronoLog story released", "");
+      // Exit immediately to avoid Disconnect/delete; ChronoLog client teardown can trigger
+      // heap corruption (free(): corrupted unsorted chunks). _exit(0) skips destructors.
+      _exit(0);
     }
+    DFTRACER_LOG_ERROR("Failed to release story '%s': error code %d", story_name_.c_str(), rel);
   }
 
   if (client_) {
