@@ -67,8 +67,8 @@ int main(int argc, char* argv[]) {
     daemonize();
 
     // Redirect stdout and stderr to log files (truncate on running)
-    freopen(out_log_path.c_str(), "w", stdout);
-    freopen(err_log_path.c_str(), "w", stderr);
+    if (freopen(out_log_path.c_str(), "w", stdout) == nullptr) { /* ignore */ }
+    if (freopen(err_log_path.c_str(), "w", stderr) == nullptr) { /* ignore */ }
 
     // Write the server's PID to a file for later reference
     std::ofstream pid_file(pid_file_path);

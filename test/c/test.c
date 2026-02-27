@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+extern char **environ;
+
 int bar();
 void foo() {
   DFTRACER_C_FUNCTION_START();
@@ -45,19 +47,29 @@ int main(int argc, char* argv[]) {
   FILE* fh = fopen(filename, "w+");
   fwrite("hello", sizeof("hello"), 1, fh);
   int child_pid = fork();  // fork a duplicate process
-  int pid = getpid();
-  int child_ppid = getppid();  // get the child's parent pid
-  printf("child_pid:%d ppid:%d pid:%d\n", child_pid, child_ppid, pid);
-
-  if (child_ppid == pid) {
-    // if the current process is a child of the main process
+  if (child_pid == 0) {
+    // we are the child process (fork returns 0 in child)
+    // Do not printf here: child and parent share stdout; if the pipe to ctest is full,
+    // the child can block on printf and never reach execv, so the parent blocks in waitpid.
+    // Clear LD_PRELOAD and tracer env so exec'd program (e.g. /bin/ls) does not
+    // load the preload library; otherwise ls exit runs preload destructors and can block.
+    unsetenv("LD_PRELOAD");
+    unsetenv("DFTRACER_ENABLE");
+    unsetenv("DFTRACER_INIT");
+    unsetenv("DFTRACER_LOG_FILE");
+    unsetenv("DFTRACER_DATA_DIR");
+    unsetenv("DFTRACER_CHRONOLOG_HOST");
+    unsetenv("DFTRACER_CHRONOLOG_PORT");
     char* arr[] = {"ls", "-l", NULL};
-    execv("/bin/ls", arr);
-    if (init) {
-      DFTRACER_C_FINI();
-    }
-    return 0;
+    // Use execve (not wrapped by preload) so the child does not block in tracer
+    // logging when preparing to exec; environ is already cleaned by unsetenv above.
+    execve("/bin/ls", arr, environ);
+    // execve only returns on failure; exit without atexit/cleanup to avoid blocking
+    _exit(127);
   }
+  int pid = getpid();
+  int child_ppid = getppid();
+  printf("child_pid:%d ppid:%d pid:%d\n", child_pid, child_ppid, pid);
   int status = -1;
   waitpid(child_pid, &status, WEXITED);
   fclose(fh);

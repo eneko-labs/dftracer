@@ -143,9 +143,63 @@ Build Variables
    DFTRACER_PYTHON_EXE              STRING  Sets path to python executable. Only Cmake.
    DFTRACER_PYTHON_SITE             STRING  Sets path to python site-packages. Only Cmake.
    DFTRACER_BUILD_PYTHON_BINDINGS   STRING  Enable python bindings for DFTracer. Only Cmake.
+   DFTRACER_WRITER_TYPE             STRING  Sets the writer backend (default STDIO). Values are STDIO, MOFKA, or CHRONOLOG. Only Cmake.
    ================================ ======  ===========================================================================
 
 These build variables can be set with cmake as ``-DDISABLE_HWLOC=OFF`` or as environment variables ``export DFTRACER_DISABLE_HWLOC=OFF``
+
+-------------------
+Writer Backends
+-------------------
+
+DFTracer supports multiple writer backends that can be selected at compile time using the ``DFTRACER_WRITER_TYPE`` CMake option:
+
+**STDIO Writer (default)**
+  Writes trace data to local files. This is the default backend and requires no additional dependencies.
+
+**MOFKA Writer**
+  Writes trace data to Mofka event streaming service. Requires the Mofka library to be installed.
+  
+  Runtime configuration (via environment variables):
+  
+  - ``DFTRACER_MOFKA_GROUP_FILE``: Path to the Mofka group file (required)
+  - ``DFTRACER_MOFKA_TOPIC_NAME``: Name of the Mofka topic (default: "dftracer_events")
+
+**CHRONOLOG Writer**
+  Writes trace data to ChronoLog distributed event logging system. Requires the ChronoLog client library. ChronoLog's public headers (e.g. ``ClientConfiguration.h``) include ``spdlog``; ChronoLog does not install spdlog itself—it is provided by the Spack environment used to build ChronoLog (see ChronoLog's ``spack.yaml``). When building DFTracer with the CHRONOLOG writer, use the **same** Spack environment: activate it (e.g. ``spack env activate /path/to/ChronoLog``) or set ``CHRONOLOG_SPACK_ENV`` and run ``script/build-with-chronolog.sh`` so ``CMAKE_PREFIX_PATH`` includes the view and spdlog is found.
+  
+  Runtime configuration (via environment variables):
+  
+  - ``DFTRACER_CHRONOLOG_PROTOCOL``: Transport protocol (default: "ofi+sockets")
+  - ``DFTRACER_CHRONOLOG_HOST``: ChronoVisor host address (default: "127.0.0.1")
+  - ``DFTRACER_CHRONOLOG_PORT``: ChronoVisor port (default: 5555)
+  - ``DFTRACER_CHRONOLOG_PROVIDER_ID``: Provider ID (default: 55)
+  - ``DFTRACER_CHRONOLOG_CHRONICLE_NAME``: Chronicle name (default: "dftracer_chronicle")
+  - ``DFTRACER_CHRONOLOG_STORY_NAME``: Story name (default: "dftracer_story")
+
+  ChronoLog does not use pub/sub: trace data is read by polling. The **writer** (tracer) uses a write-only client and **releases the story** when finalizing so the reader can consume. The **reader** uses a client constructed with both portal and query config (reader mode), **acquires the story**, then calls ``Client::ReplayStory()`` in a loop. When building with the CHRONOLOG writer, the **dftracer_chronolog_reader** tool is also built. The query service defaults to port 5557 (override with ``DFTRACER_CHRONOLOG_QUERY_HOST`` / ``DFTRACER_CHRONOLOG_QUERY_PORT``). Use it to drain trace data into a ``.pfw`` file for DFAnalyzer or Perfetto. Example: ``dftracer_chronolog_reader --once --output trace.pfw`` (one-shot) or ``dftracer_chronolog_reader --output trace.pfw --poll-interval 2`` (continuous). Tests use the reader in ``--once`` mode and verify event count.
+
+  **Testing in Docker (ChronoVisor already running):** From inside the container, set ``CHRONOLOG_INSTALL_DIR`` to the ChronoLog install prefix, build DFTracer with ``script/build-with-chronolog.sh``, then run the write+read smoke test: ``bash script/run-chronolog-write-read-test.sh [install_prefix]``. If ChronoVisor is in another container, set ``DFTRACER_CHRONOLOG_HOST`` to that host (e.g. the service name). The script runs the tracer, drains events with the reader into ``/tmp/dftracer_chronolog_events.pfw``, and prints the event count.
+
+To build with a specific writer backend:
+
+.. code-block:: Bash
+
+    # Build with STDIO writer (default)
+    cmake . -B build -DCMAKE_INSTALL_PREFIX=<install-path>
+    
+    # Build with MOFKA writer
+    cmake . -B build -DCMAKE_INSTALL_PREFIX=<install-path> -DDFTRACER_WRITER_TYPE=MOFKA
+    
+    # Build with CHRONOLOG writer
+    cmake . -B build -DCMAKE_INSTALL_PREFIX=<install-path> -DDFTRACER_WRITER_TYPE=CHRONOLOG -DCHRONOLOG_INSTALL_DIR=<chronolog-install-path>
+
+For the CHRONOLOG writer, you can either:
+
+1. Set ``CHRONOLOG_INSTALL_DIR`` to point to your ChronoLog installation directory, or
+2. Ensure ChronoLog is findable via CMake's ``find_package()`` by adding it to ``CMAKE_PREFIX_PATH``
+
+  spdlog (required by ChronoLog headers) is found from the ChronoLog Spack env view (when that env is active or ``CHRONOLOG_SPACK_ENV`` is set), from ``CMAKE_PREFIX_PATH``, or from ``SPDLOG_INSTALL_DIR``. The script ``script/build-with-chronolog.sh`` can source the ChronoLog Spack env when ``CHRONOLOG_SPACK_ENV`` is set so the same view used to build ChronoLog is used when building DFTracer.
 
 Build DFTracer Dependencies
 ********************************

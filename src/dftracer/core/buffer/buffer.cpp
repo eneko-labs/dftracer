@@ -5,6 +5,8 @@
 
 #if DFTRACER_WRITER_TYPE_MOFKA
 #include <dftracer/core/writer/mofka_writer.h>
+#elif DFTRACER_WRITER_TYPE_CHRONOLOG
+#include <dftracer/core/writer/chronolog_writer.h>
 #elif DFTRACER_WRITER_TYPE_STDIO
 #include <dftracer/core/writer/stdio_writer.h>
 #endif
@@ -18,7 +20,7 @@ bool dftracer::Singleton<dftracer::BufferManager>::stop_creating_instances =
 namespace dftracer {
 
 void BufferManager::compress_and_write_if_needed(size_t size, bool force) {
-#if DFTRACER_WRITER_TYPE_MOFKA
+#if DFTRACER_WRITER_TYPE_MOFKA || DFTRACER_WRITER_TYPE_CHRONOLOG
   force = true;
 #endif
   if (force || buffer_pos + size > this->config->write_buffer_size) {
@@ -50,6 +52,9 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
 #if DFTRACER_WRITER_TYPE_MOFKA
   this->writer = std::static_pointer_cast<dftracer::WriterInterface>(
       dftracer::Singleton<dftracer::MofkaWriter>::get_instance());
+#elif DFTRACER_WRITER_TYPE_CHRONOLOG
+  this->writer = std::static_pointer_cast<dftracer::WriterInterface>(
+      dftracer::Singleton<dftracer::ChronologWriter>::get_instance());
 #else
   this->writer = std::static_pointer_cast<dftracer::WriterInterface>(
       dftracer::Singleton<dftracer::STDIOWriter>::get_instance());
@@ -68,7 +73,7 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
 }
 
 int BufferManager::finalize(int index, ProcessID process_id, bool end_sym) {
-#if DFTRACER_WRITER_TYPE_MOFKA
+#if DFTRACER_WRITER_TYPE_MOFKA || DFTRACER_WRITER_TYPE_CHRONOLOG
   end_sym = false;
 #endif
   std::unique_lock<std::shared_mutex> lock(mtx);

@@ -135,6 +135,23 @@ if(DEFINED ENV{DFTRACER_PYTHON_EXE})
     set(DFTRACER_PYTHON_EXE $ENV{DFTRACER_PYTHON_EXE} CACHE STRING "Python executable to use for building." FORCE)
 endif()
 
+# Resolve path so CTest finds the executable: relative -> absolute; if missing, try python3 (Debian venv).
+if(DFTRACER_PYTHON_EXE MATCHES "/")
+    if(NOT IS_ABSOLUTE "${DFTRACER_PYTHON_EXE}")
+        get_filename_component(ABS_PYTHON_EXE "${DFTRACER_PYTHON_EXE}" ABSOLUTE BASE_DIR "${CMAKE_BINARY_DIR}")
+    else()
+        set(ABS_PYTHON_EXE "${DFTRACER_PYTHON_EXE}")
+    endif()
+    if(EXISTS "${ABS_PYTHON_EXE}")
+        set(DFTRACER_PYTHON_EXE "${ABS_PYTHON_EXE}" CACHE STRING "Python executable to use for building." FORCE)
+    else()
+        get_filename_component(PYTHON_EXE_DIR "${ABS_PYTHON_EXE}" DIRECTORY)
+        if(EXISTS "${PYTHON_EXE_DIR}/python3")
+            set(DFTRACER_PYTHON_EXE "${PYTHON_EXE_DIR}/python3" CACHE STRING "Python executable to use for building." FORCE)
+        endif()
+    endif()
+endif()
+
 set(DFTRACER_PYTHON_SITE $ENV{DFTRACER_PYTHON_SITE} CACHE STRING "Python site packages to use for building.")
 if(NOT DFTRACER_PYTHON_SITE AND DEFINED ENV{DFTRACER_PYTHON_SITE})
     set(DFTRACER_PYTHON_SITE $ENV{DFTRACER_PYTHON_SITE} CACHE STRING "Python site packages to use for building." FORCE)
@@ -167,9 +184,15 @@ option(DFTRACER_WRITER_TYPE "Writer Type" "STDIO")
 if(DFTRACER_WRITER_TYPE STREQUAL "MOFKA")
   set(DFTRACER_WRITER_TYPE_STDIO 0)
   set(DFTRACER_WRITER_TYPE_MOFKA 1)
+  set(DFTRACER_WRITER_TYPE_CHRONOLOG 0)
+elseif(DFTRACER_WRITER_TYPE STREQUAL "CHRONOLOG")
+  set(DFTRACER_WRITER_TYPE_STDIO 0)
+  set(DFTRACER_WRITER_TYPE_MOFKA 0)
+  set(DFTRACER_WRITER_TYPE_CHRONOLOG 1)
 else()
   set(DFTRACER_WRITER_TYPE_STDIO 1)
   set(DFTRACER_WRITER_TYPE_MOFKA 0)
+  set(DFTRACER_WRITER_TYPE_CHRONOLOG 0)
 endif()
 
 #------------------------------------------------------------------------------
@@ -354,6 +377,126 @@ if(DFTRACER_WRITER_TYPE_MOFKA)
     endif()
 endif()
 
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    if(DEFINED CHRONOLOG_INSTALL_DIR)
+        include_directories(${CHRONOLOG_INSTALL_DIR}/include)
+        # Link only libchronolog_client by full path so the linker does not pull in other
+        # libs from ChronoLog's lib (e.g. libibverbs, librdmacm, libnl) which would
+        # require their transitive deps and can cause undefined refs (e.g. libnl_3).
+        find_library(CHRONOLOG_CLIENT_LIB NAMES chronolog_client
+            PATHS ${CHRONOLOG_INSTALL_DIR}/lib NO_DEFAULT_PATH)
+        if(NOT CHRONOLOG_CLIENT_LIB)
+            message(FATAL_ERROR "[DFTRACER] libchronolog_client not found in ${CHRONOLOG_INSTALL_DIR}/lib")
+        endif()
+        # Do NOT add ChronoLog's lib to global DEPENDENCY_LIBRARY_DIRS/RPATH; the service
+        # executable would get that RPATH and the linker would pull in libnl etc. We add
+        # ChronoLog's lib to RPATH only on targets that link chronolog_client (see below).
+        message(STATUS "[DFTRACER] Using ChronoLog from CHRONOLOG_INSTALL_DIR: ${CHRONOLOG_INSTALL_DIR}")
+        # ChronoLog was likely built with a Spack env; spdlog lives in that view, not in ChronoLog's install.
+        # Add parent of ChronoLog install to search path so a unified view (chronolog-install = view root) is found.
+        get_filename_component(_chronolog_parent "${CHRONOLOG_INSTALL_DIR}" DIRECTORY)
+        if(_chronolog_parent AND NOT "${_chronolog_parent}" STREQUAL "${CHRONOLOG_INSTALL_DIR}")
+            list(APPEND CMAKE_PREFIX_PATH "${_chronolog_parent}")
+        endif()
+    else()
+        find_package(chronolog QUIET)
+        if(chronolog_FOUND)
+            set(CHRONOLOG_CLIENT_LIB chronolog::client)
+            message(STATUS "[DFTRACER] found chronolog via find_package")
+        else()
+            message(FATAL_ERROR "[DFTRACER] ChronoLog not found. Set CHRONOLOG_INSTALL_DIR to the ChronoLog install prefix, or ensure chronolog is in CMAKE_PREFIX_PATH.")
+        endif()
+    endif()
+    # ChronoLog headers include spdlog; ensure it is findable (e.g. via Spack or CMAKE_PREFIX_PATH)
+    find_package(spdlog CONFIG QUIET)
+    if(NOT spdlog_FOUND)
+        find_path(SPDLOG_INCLUDE_DIR NAMES spdlog/common.h
+            PATHS /usr/include /usr/local/include
+            DOC "spdlog include directory (required by ChronoLog)")
+        if(SPDLOG_INCLUDE_DIR)
+            set(spdlog_FOUND TRUE)
+        endif()
+    endif()
+    if(NOT spdlog_FOUND AND DEFINED SPDLOG_INSTALL_DIR)
+        find_path(SPDLOG_INCLUDE_DIR NAMES spdlog/common.h
+            PATHS ${SPDLOG_INSTALL_DIR}/include
+            NO_DEFAULT_PATH DOC "spdlog include directory")
+        if(SPDLOG_INCLUDE_DIR)
+            set(spdlog_FOUND TRUE)
+        endif()
+    endif()
+    # Search CHRONOLOG_INSTALL_DIR's parent (unified install or view root) before other paths
+    if(NOT spdlog_FOUND AND DEFINED CHRONOLOG_INSTALL_DIR)
+        get_filename_component(_chronolog_parent "${CHRONOLOG_INSTALL_DIR}" DIRECTORY)
+        if(_chronolog_parent)
+            find_path(SPDLOG_INCLUDE_DIR NAMES spdlog/common.h
+                PATHS "${_chronolog_parent}/include" "${_chronolog_parent}"
+                NO_DEFAULT_PATH DOC "spdlog (e.g. from same Spack view as ChronoLog)")
+            if(SPDLOG_INCLUDE_DIR)
+                set(spdlog_FOUND TRUE)
+                message(STATUS "[DFTRACER] Found spdlog next to ChronoLog install: ${SPDLOG_INCLUDE_DIR}")
+            endif()
+        endif()
+    endif()
+    if(NOT spdlog_FOUND AND CMAKE_PREFIX_PATH)
+        # Prefer Spack / CMAKE_PREFIX_PATH so dependencies can be supplied by Spack env
+        foreach(_prefix ${CMAKE_PREFIX_PATH})
+            find_path(SPDLOG_INCLUDE_DIR NAMES spdlog/common.h
+                PATHS "${_prefix}/include" "${_prefix}"
+                NO_DEFAULT_PATH DOC "spdlog include (e.g. from Spack)")
+            if(SPDLOG_INCLUDE_DIR)
+                set(spdlog_FOUND TRUE)
+                break()
+            endif()
+        endforeach()
+    endif()
+    if(NOT spdlog_FOUND)
+        # Fallback: fetch spdlog so the build works without Spack env (e.g. in CI or when view is elsewhere)
+        include(FetchContent)
+        FetchContent_Declare(
+            spdlog
+            GIT_REPOSITORY https://github.com/gabime/spdlog.git
+            GIT_TAG        v1.12.1
+            GIT_SHALLOW    TRUE
+        )
+        set(SPDLOG_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(spdlog)
+        if(TARGET spdlog::spdlog)
+            set(spdlog_FOUND TRUE)
+            message(STATUS "[DFTRACER] Using spdlog from FetchContent (v1.12.1)")
+        endif()
+    endif()
+    if(NOT spdlog_FOUND)
+        message(FATAL_ERROR
+            "[DFTRACER] ChronoLog's headers include spdlog, but spdlog was not found and FetchContent failed.\n"
+            "ChronoLog is built with a Spack env (spdlog in the env view); you can:\n"
+            "  1. Activate the ChronoLog Spack env:  spack env activate /path/to/ChronoLog\n"
+            "  2. Set SPDLOG_INSTALL_DIR to spdlog's prefix, or pass -DCMAKE_PREFIX_PATH=<view-path>.")
+    endif()
+    if(spdlog_FOUND)
+        if(TARGET spdlog::spdlog)
+            # Use target so include dirs are propagated
+            set(DEPENDENCY_LIB ${DEPENDENCY_LIB} spdlog::spdlog)
+        elseif(SPDLOG_INCLUDE_DIR)
+            include_directories(${SPDLOG_INCLUDE_DIR})
+        endif()
+    endif()
+    # Do NOT add CHRONOLOG_CLIENT_LIB to DEPENDENCY_LIB; we link it PRIVATE to core only
+    # so targets that link to core (e.g. dftracer_service) do not inherit it and the
+    # linker does not pull in ChronoLog's transitive deps (libibverbs, librdmacm, libnl).
+    message(STATUS "[DFTRACER] ChronoLog writer backend enabled")
+
+    # ChronoLog reader tool: polls story via playback_story() and writes events to file/stdout.
+    add_executable(dftracer_chronolog_reader ${CMAKE_CURRENT_SOURCE_DIR}/test/chronolog_reader.cpp)
+    if(DEFINED CHRONOLOG_INSTALL_DIR)
+        target_include_directories(dftracer_chronolog_reader PRIVATE ${CHRONOLOG_INSTALL_DIR}/include)
+    endif()
+    target_link_libraries(dftracer_chronolog_reader PRIVATE ${CHRONOLOG_CLIENT_LIB})
+endif()
+
+set(DEPENDENCY_LIB_FOR_EXECUTABLES ${DEPENDENCY_LIB})
+
 # Set RPATH to all dependency library dirs
 list(REMOVE_DUPLICATES DEPENDENCY_LIBRARY_DIRS)
 set(CMAKE_INSTALL_RPATH "${DEPENDENCY_LIBRARY_DIRS}")
@@ -407,15 +550,23 @@ set(DFTRACER_CORE_PRIVATE_INCLUDE
 
 if(DFTRACER_WRITER_TYPE_MOFKA)
     list(APPEND DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/writer/mofka_writer.cpp)
+elseif(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    list(APPEND DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/writer/chronolog_writer.cpp)
 else()
     list(APPEND DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/writer/stdio_writer.cpp)
 endif()
 
 add_library(${PROJECT_NAME}_core SHARED)
 target_compile_definitions(${PROJECT_NAME}_core PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-target_link_libraries(${PROJECT_NAME}_core ${DEPENDENCY_LIB})
+target_link_libraries(${PROJECT_NAME}_core PRIVATE ${DEPENDENCY_LIB})
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    target_link_libraries(${PROJECT_NAME}_core PRIVATE ${CHRONOLOG_CLIENT_LIB})
+endif()
 add_library(${PROJECT_NAME}_core_dbg SHARED)
-target_link_libraries(${PROJECT_NAME}_core_dbg ${DEPENDENCY_LIB})
+target_link_libraries(${PROJECT_NAME}_core_dbg PRIVATE ${DEPENDENCY_LIB})
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    target_link_libraries(${PROJECT_NAME}_core_dbg PRIVATE ${CHRONOLOG_CLIENT_LIB})
+endif()
 add_library(${PROJECT_NAME}_preload SHARED)
 target_link_libraries(${PROJECT_NAME}_preload ${DEPENDENCY_LIB} ${PROJECT_NAME}_core)
 add_library(${PROJECT_NAME}_preload_dbg SHARED)
@@ -426,7 +577,22 @@ set(DFTRACER_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/service/servic
 
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVICE_SRC})
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB} ${PROJECT_NAME}_core)
+# When using Chronolog: link the service to the core .so by path (not target) and tell
+# the linker to NOT copy DT_NEEDED from that .so. Otherwise the linker pulls in
+# libchronolog_client.so (from core's RPATH) and then libnl/libibverbs/librdmacm, which
+# need libnl_3 and fail. With --no-copy-dt-needed-entries the service only gets
+# DT_NEEDED for libdftracer_core.so; at runtime the loader loads core and then core's
+# DT_NEEDED (chronolog_client) via core's RPATH.
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    set(_core_so "${CMAKE_BINARY_DIR}/${DFTRACER_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}_core${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} "${_core_so}")
+    add_dependencies(${PROJECT_NAME}_service ${PROJECT_NAME}_core)
+    # Core's RPATH was stripped so the linker can't find libchronolog_client; allow unresolved
+    # symbols in the linked .so (they are resolved at runtime when the loader loads core and chronolog).
+    target_link_options(${PROJECT_NAME}_service PRIVATE "-Wl,--no-copy-dt-needed-entries" "-Wl,--allow-shlib-undefined")
+else()
+    target_link_libraries(${PROJECT_NAME}_service PRIVATE ${DEPENDENCY_LIB_FOR_EXECUTABLES} ${PROJECT_NAME}_core)
+endif()
 
 if (DFTRACER_BUILD_PYTHON_BINDINGS)
     pybind11_add_module(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/python/dftracer.cpp)
@@ -437,6 +603,40 @@ if (DFTRACER_BUILD_PYTHON_BINDINGS)
     target_compile_definitions(${PROJECT_NAME}_dbg PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
     target_link_libraries(${PROJECT_NAME}_dbg PRIVATE ${DEPENDENCY_LIB} ${PROJECT_NAME}_core_dbg)
     list(APPEND DFTRACER_DEBUG_TARGETS ${PROJECT_NAME}_dbg)
+endif()
+
+# ChronoLog's lib in RPATH for targets that link chronolog_client so they can load it at runtime.
+# The linker adds the dir of libchronolog_client.so to the core's RPATH when linking the core,
+# so the built core .so would still point to chronolog's lib and the service link would pull in
+# libnl etc. We strip that by overwriting the core's RPATH with patchelf after build (build dir
+# only); install uses INSTALL_RPATH which includes ChronoLog.
+if(DFTRACER_WRITER_TYPE_CHRONOLOG AND DEFINED CHRONOLOG_INSTALL_DIR)
+    set(_chronolog_lib_dir "${CHRONOLOG_INSTALL_DIR}/lib")
+    foreach(_tgt ${PROJECT_NAME}_core ${PROJECT_NAME}_core_dbg ${PROJECT_NAME}_preload ${PROJECT_NAME}_preload_dbg dftracer_chronolog_reader)
+        set_target_properties(${_tgt} PROPERTIES
+            INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
+    endforeach()
+    if(DFTRACER_BUILD_PYTHON_BINDINGS)
+        foreach(_tgt ${PROJECT_NAME} ${PROJECT_NAME}_dbg)
+            set_target_properties(${_tgt} PROPERTIES
+                INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${_chronolog_lib_dir}")
+        endforeach()
+    endif()
+    # Overwrite built core .so RPATH so it does NOT contain chronolog's lib; then linking
+    # dftracer_service to the core won't find libchronolog_client and won't pull in libnl.
+    find_program(PATCHELF patchelf)
+    if(NOT PATCHELF)
+        message(FATAL_ERROR "[DFTRACER] Building with Chronolog requires patchelf to fix the core RPATH (e.g. apt install patchelf).")
+    endif()
+    string(REPLACE ";" ":" _build_rpath_colon "${CMAKE_BUILD_RPATH}")
+    add_custom_command(TARGET ${PROJECT_NAME}_core POST_BUILD
+        COMMAND ${PATCHELF} --set-rpath "${_build_rpath_colon}" $<TARGET_FILE:${PROJECT_NAME}_core>
+        COMMENT "[DFTRACER] Stripping ChronoLog from core RPATH so service can link"
+        VERBATIM)
+    add_custom_command(TARGET ${PROJECT_NAME}_core_dbg POST_BUILD
+        COMMAND ${PATCHELF} --set-rpath "${_build_rpath_colon}" $<TARGET_FILE:${PROJECT_NAME}_core_dbg>
+        COMMENT "[DFTRACER] Stripping ChronoLog from core_dbg RPATH so service can link"
+        VERBATIM)
 endif()
 
 target_sources(${PROJECT_NAME}_core PRIVATE ${DFTRACER_CORE_SRC})
@@ -495,6 +695,12 @@ install(
     ARCHIVE DESTINATION ${DFTRACER_INSTALL_LIB_DIR}
     RUNTIME DESTINATION ${DFTRACER_INSTALL_BIN_DIR}
 )
+if(DFTRACER_WRITER_TYPE_CHRONOLOG)
+    install(
+        TARGETS dftracer_chronolog_reader
+        RUNTIME DESTINATION ${DFTRACER_INSTALL_BIN_DIR}
+    )
+endif()
 install(TARGETS ${PROJECT_NAME}_preload
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -521,24 +727,18 @@ if (DFTRACER_BUILD_PYTHON_BINDINGS)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/$<TARGET_FILE_NAME:${PROJECT_NAME}> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}>;ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}>")
+    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}>;mkdir -p ${MAIN_PYTHON_SITE_PACKAGES}/dftracer && ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}> || echo '[DFTRACER] Python symlink skipped (use PYTHONPATH for install lib)'")
     install(CODE "execute_process(
-                COMMAND bash -c \"set -e
-                chmod +x ${CMAKE_BINARY_DIR}/symlink.sh
-                . ${CMAKE_BINARY_DIR}/symlink.sh
-                \")")
+                COMMAND bash -c \"chmod +x ${CMAKE_BINARY_DIR}/symlink.sh; . ${CMAKE_BINARY_DIR}/symlink.sh\")")
 
     install(
         TARGETS ${PROJECT_NAME}_dbg
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink_dbg.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg>;ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg>")
+    file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/symlink_dbg.sh CONTENT "echo -- Installing: symlink ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> from ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg>;mkdir -p ${MAIN_PYTHON_SITE_PACKAGES}/dftracer && ln -sf ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> ${MAIN_PYTHON_SITE_PACKAGES}/dftracer/$<TARGET_FILE_NAME:${PROJECT_NAME}_dbg> || echo '[DFTRACER] Python symlink skipped'")
     install(CODE "execute_process(
-                COMMAND bash -c \"set -e
-                chmod +x ${CMAKE_BINARY_DIR}/symlink_dbg.sh
-                . ${CMAKE_BINARY_DIR}/symlink_dbg.sh
-                \")")
+                COMMAND bash -c \"chmod +x ${CMAKE_BINARY_DIR}/symlink_dbg.sh; . ${CMAKE_BINARY_DIR}/symlink_dbg.sh\")")
 endif()
 
 if(DFTRACER_ENABLE_NATIVE_SCRIPT)
